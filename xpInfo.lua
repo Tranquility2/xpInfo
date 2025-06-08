@@ -1,6 +1,6 @@
 -- Get the addon object
 local addonName, addonTable = ...
-local addon = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0", "AceEvent-3.0", "AceTimer-3.0")
+local addon = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0", "AceEvent-3.0")
 
 -- Localization
 local L = LibStub("AceLocale-3.0"):NewLocale(addonName, "enUS", true)
@@ -13,6 +13,7 @@ if L then
     L["Frame position reset."] = "Frame position reset."
     L["Usage: /pp [show|hide|reset]"] = "Usage: /xpi [show|hide|reset]"
     L["Congratulations on leveling up!"] = "Congratulations on leveling up!"
+    L["Refresh"] = "Refresh" -- ADDED
 end
 -- After NewLocale, GetLocale can be called.
 L = LibStub("AceLocale-3.0"):GetLocale(addonName)
@@ -41,7 +42,8 @@ function addon:OnInitialize()
     self:RegisterChatCommand("xpi", "ChatCommand")
     self:RegisterEvent("PLAYER_XP_UPDATE", "UpdateXP")
     self:RegisterEvent("PLAYER_LEVEL_UP", "LevelUp")
-    self:RegisterEvent("PLAYER_ENTERING_WORLD", "UpdateXP") -- Update on login/reload
+    self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnPlayerEnteringWorld")
+    self:RegisterEvent("TIME_PLAYED_MSG", "OnTimePlayedMessage") -- Ensure this is registered
 
     -- Create the frame
     self:CreateFrame()
@@ -52,8 +54,9 @@ function addon:OnEnable()
     if self.db.profile.showFrame then
         frame:Show()
     end
-    self:ScheduleRepeatingTimer("UpdateTimePlayed", 1)
     lastXP = UnitXP("player") -- Initialize lastXP
+    RequestTimePlayed() -- Request initial time played data
+    self:UpdateXP() 
 end
 
 -- Create the UI frame
@@ -66,8 +69,8 @@ function addon:CreateFrame()
     frame:EnableMouse(true)
     frame:RegisterForDrag("LeftButton")
     frame:SetScript("OnDragStart", frame.StartMoving)
-    frame:SetScript("OnDragStop", function(f) -- Changed self to f for clarity, it refers to the frame
-        f:StopMovingOrSizing() -- Ensure movement/sizing is finalized
+    frame:SetScript("OnDragStop", function(f) 
+        f:StopMovingOrSizing()
 
         local xOffset = f:GetLeft()
         local yOffset = f:GetTop() - GetScreenHeight()
@@ -77,7 +80,10 @@ function addon:CreateFrame()
         f:ClearAllPoints()
         f:SetPoint("TOPLEFT", UIParent, "TOPLEFT", xOffset, yOffset)
         
-        addon:UpdateFrameText() -- Update text after moving (and potentially resizing)
+        addon:UpdateFrameText() 
+    end)
+    frame:SetScript("OnMouseDown", function(f, button)
+        self:UpdateFrameText() 
     end)
 
     frame.title = frame:CreateFontString(addonName .. "FrameTitle", "ARTWORK", "GameFontNormalLarge")
@@ -91,6 +97,19 @@ function addon:CreateFrame()
     frame.timeText = frame:CreateFontString(addonName .. "FrameTimeText", "ARTWORK", "GameFontNormal")
     frame.timeText:SetPoint("TOPLEFT", frame.xpText, "BOTTOMLEFT", 0, -5)
     frame.timeText:SetJustifyH("LEFT")
+
+    -- Refresh Button -- ADDED BLOCK
+    frame.refreshButton = CreateFrame("Button", addonName .. "RefreshButton", frame, "UIPanelButtonTemplate")
+    frame.refreshButton:SetText(L["Refresh"])
+    frame.refreshButton:SetWidth(80)
+    frame.refreshButton:SetHeight(20)
+    frame.refreshButton:SetPoint("TOP", frame.timeText, "BOTTOM", 0, -10) -- Position below timeText
+
+    frame.refreshButton:SetScript("OnClick", function()
+        RequestTimePlayed()
+        -- addon:Print("Refresh clicked, requesting time data.") -- Optional debug
+    end)
+    -- END ADDED BLOCK
 
     frame:SetScript("OnHide", function(f) -- f is the frame itself
         addon.db.profile.showFrame = false
@@ -116,7 +135,16 @@ function addon:UpdateFrameText()
     local timeString = string.format(L["Time Played (Total): %s\nTime Played (Level): %s\nTime to Level: %s"],
                                    timePlayedTotalString, timePlayedLevelString, timeToLevel)
     frame.timeText:SetText(timeString)
-    frame:SetHeight(frame.title:GetStringHeight() + frame.xpText:GetStringHeight() + frame.timeText:GetStringHeight() + 40)
+    
+    -- Adjusted height calculation -- MODIFIED LINE
+    local titleH = frame.title:GetStringHeight()
+    local xpTextH = frame.xpText:GetStringHeight()
+    local timeTextH = frame.timeText:GetStringHeight()
+    local buttonH = frame.refreshButton:GetHeight() -- This is 20 as set in CreateFrame
+
+    -- The constant 50 here is an estimate for all vertical paddings combined
+    -- (e.g., above title, between elements, below button)
+    frame:SetHeight(titleH + xpTextH + timeTextH + buttonH + 50)
 end
 
 -- Handle chat commands
@@ -165,19 +193,30 @@ end
 
 -- Handle level up event
 function addon:LevelUp()
-    timePlayedLevel = 0
+    timePlayedLevel = 0 -- RESET for the new level
     xpGained = 0
     timeToLevel = L["Calculating..."]
     lastXP = UnitXP("player") -- Reset lastXP for the new level
+    RequestTimePlayed() -- Request new time played data after level up
     self:UpdateFrameText()
     print(addonName .. ": " .. L["Congratulations on leveling up!"])
 end
 
--- Update time played counters
-function addon:UpdateTimePlayed()
-    timePlayedTotal = timePlayedTotal + 1
-    timePlayedLevel = timePlayedLevel + 1
-    self:UpdateXP() -- Recalculate TTL every second
+-- Handler for PLAYER_ENTERING_WORLD
+function addon:OnPlayerEnteringWorld()
+    RequestTimePlayed() -- Request time played data on entering world
+    self:UpdateXP() 
+end
+
+-- Handler for TIME_PLAYED_MSG
+function addon:OnTimePlayedMessage(event, totalTimeArg, levelTimeArg)
+    -- totalTimeArg is total time played in seconds on this character
+    -- levelTimeArg is total time played in seconds at the current level on this character
+    if totalTimeArg and levelTimeArg then
+        timePlayedTotal = totalTimeArg
+        timePlayedLevel = levelTimeArg
+    end
+    self:UpdateXP()           -- This will update calculations and then call UpdateFrameText
 end
 
 -- Format seconds into a readable string (hh:mm:ss)
