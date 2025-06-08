@@ -1,7 +1,0 @@
-## Interface: 11501
-## Title: Test
-## Notes: TBD
-## Version: 1.0.0
-
-# This line is a comment
-debug.lua

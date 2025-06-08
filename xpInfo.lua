@@ -1,66 +1,183 @@
--- Create the frame
-local myFrame = CreateFrame("Frame", nil, UIParent, "BasicFrameTemplate")
-myFrame:SetFrameStrata("DIALOG")
-myFrame:SetWidth(200)
-myFrame:SetHeight(200)
-myFrame:SetPoint("CENTER")
+-- Get the addon object
+local addonName, addonTable = ...
+local addon = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0", "AceEvent-3.0")
+local L = LibStub("AceLocale-3.0"):GetLocale(addonName)
 
-local lastLevelUpTime = nil -- Stores the timestamp of the last level up
+-- Default database values
+local defaults = {
+    profile = {
+        showFrame = true,
+        framePosition = { "CENTER", "CENTER", 0, 0 },
+    }
+}
 
--- Function to get XP related information (Ensured to be defined before use in event handler)
-local function GetXPInfo()
-    local currentXP = UnitXP("player")
-    local maxXP = UnitXPMax("player")
-    local neededXP = maxXP - currentXP
-    local restedXP = GetXPExhaustion() -- This can be nil if no rested XP
+-- Frame
+local frame
 
-    local restedXPString = "N/A"
-    if restedXP then
-        restedXPString = tostring(restedXP)
-    end
+-- Time tracking
+local timePlayedTotal = 0
+local timePlayedLevel = 0
+local lastXP = 0
+local xpGained = 0
+local timeToLevel = "Calculating..."
 
-    local timeOnLevelString = "N/A"
-    if lastLevelUpTime then
-        local timeSinceLastLevelUp = GetTime() - lastLevelUpTime
-        local hours = math.floor(timeSinceLastLevelUp / 3600)
-        local minutes = math.floor((timeSinceLastLevelUp % 3600) / 60)
-        local seconds = math.floor(timeSinceLastLevelUp % 60)
-        timeOnLevelString = string.format("%02dh %02dm %02ds", hours, minutes, seconds)
-    end
+-- Called when the addon is initialized
+function addon:OnInitialize()
+    self.db = LibStub("AceDB-3.0"):New(addonName .. "DB", defaults, true)
+    self:RegisterChatCommand("pp", "ChatCommand")
+    self:RegisterEvent("PLAYER_XP_UPDATE", "UpdateXP")
+    self:RegisterEvent("PLAYER_LEVEL_UP", "LevelUp")
+    self:RegisterEvent("PLAYER_ENTERING_WORLD", "UpdateXP") -- Update on login/reload
 
-    -- Note: "Time on level" is now tracked via PLAYER_LEVEL_UP event.
-    return string.format("XP Information:\n\nCurrent XP: %d / %d\nXP to Next Level: %d\nRested XP: %s\nTime on Level: %s", currentXP, maxXP, neededXP, restedXPString, timeOnLevelString)
+    -- Create the frame
+    self:CreateFrame()
 end
 
--- Create a FontString for displaying text (Ensured to be defined before use in event handler)
-local myFrameText = myFrame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-myFrameText:SetPoint("TOPLEFT", myFrame, "TOPLEFT", 5, -5)
-myFrameText:SetPoint("BOTTOMRIGHT", myFrame, "BOTTOMRIGHT", -5, 5) -- Allow text to wrap
-myFrameText:SetJustifyH("LEFT")
-myFrameText:SetJustifyV("TOP")
-myFrameText:SetText("Info") -- Initial text, will be updated by GetXPInfo or OnDragStop
-
--- Event frame to listen for PLAYER_LEVEL_UP
-local eventFrame = CreateFrame("Frame")
-eventFrame:RegisterEvent("PLAYER_LEVEL_UP")
-eventFrame:SetScript("OnEvent", function(self, event, ...)
-    if event == "PLAYER_LEVEL_UP" then
-        lastLevelUpTime = GetTime()
-        print("PLAYER_LEVEL_UP event fired. Last level-up time recorded.")
-        -- If the frame is visible, update its text
-        if myFrame and myFrame:IsShown() and myFrameText and GetXPInfo then
-            myFrameText:SetText(GetXPInfo())
-        end
+-- Called when the addon is enabled
+function addon:OnEnable()
+    if self.db.profile.showFrame then
+        frame:Show()
     end
-end)
+    self:ScheduleRepeatingTimer("UpdateTimePlayed", 1)
+    lastXP = UnitXP("player") -- Initialize lastXP
+end
 
-myFrame:SetMovable(true)
-myFrame:EnableMouse(true)
-myFrame:RegisterForDrag("LeftButton")
-myFrame:SetScript("OnDragStart", myFrame.StartMoving)
-myFrame:SetScript("OnDragStop", function(self)
-    self:StopMovingOrSizing()
-    local xpString = GetXPInfo()
-    myFrameText:SetText(xpString) -- Update the text in the frame
-end)
-myFrame:Show()
+-- Create the UI frame
+function addon:CreateFrame()
+    frame = CreateFrame("Frame", addonName .. "Frame", UIParent, "BasicFrameTemplateWithInset")
+    frame:SetWidth(250)
+    frame:SetHeight(150)
+    frame:SetPoint(unpack(self.db.profile.framePosition))
+    frame:SetMovable(true)
+    frame:EnableMouse(true)
+    frame:RegisterForDrag("LeftButton")
+    frame:SetScript("OnDragStart", frame.StartMoving)
+    frame:SetScript("OnDragStop", function(self)
+        addon.db.profile.framePosition = { self:GetPoint() }
+        addon:UpdateFrameText() -- Update text after moving
+    end)
+
+    frame.title = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    frame.title:SetPoint("TOP", 0, -5)
+    frame.title:SetText(L["Player Progression"])
+
+    frame.xpText = frame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    frame.xpText:SetPoint("TOPLEFT", 15, -30)
+    frame.xpText:SetJustifyH("LEFT")
+
+    frame.timeText = frame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    frame.timeText:SetPoint("TOPLEFT", frame.xpText, "BOTTOMLEFT", 0, -5)
+    frame.timeText:SetJustifyH("LEFT")
+
+    frame.closeButton = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
+    frame.closeButton:SetPoint("TOPRIGHT", -2, -2)
+    frame.closeButton:SetScript("OnClick", function()
+        frame:Hide()
+        addon.db.profile.showFrame = false
+    end)
+
+    self:UpdateFrameText()
+end
+
+-- Update the text on the frame
+function addon:UpdateFrameText()
+    if not frame or not frame:IsShown() then return end
+
+    local currentXP = UnitXP("player")
+    local maxXP = UnitXPMax("player")
+    local restedXP = GetXPExhaustion() or 0
+
+    local xpString = string.format(L["Current XP: %s / %s\nRested XP: %s"], currentXP, maxXP, restedXP)
+    frame.xpText:SetText(xpString)
+
+    local timePlayedTotalString = self:FormatTime(timePlayedTotal)
+    local timePlayedLevelString = self:FormatTime(timePlayedLevel)
+
+    local timeString = string.format(L["Time Played (Total): %s\nTime Played (Level): %s\nTime to Level: %s"],
+                                   timePlayedTotalString, timePlayedLevelString, timeToLevel)
+    frame.timeText:SetText(timeString)
+    frame:SetHeight(frame.title:GetStringHeight() + frame.xpText:GetStringHeight() + frame.timeText:GetStringHeight() + 40)
+end
+
+-- Handle chat commands
+function addon:ChatCommand(input)
+    if input == "show" then
+        frame:Show()
+        self.db.profile.showFrame = true
+    elseif input == "hide" then
+        frame:Hide()
+        self.db.profile.showFrame = false
+    elseif input == "reset" then
+        -- Reset frame position or other settings if needed
+        self.db.profile.framePosition = defaults.profile.framePosition
+        frame:ClearAllPoints()
+        frame:SetPoint(unpack(self.db.profile.framePosition))
+        print(addonName .. ": " .. L["Frame position reset."])
+    else
+        print(addonName .. ": " .. L["Usage: /pp [show|hide|reset]"])
+    end
+end
+
+-- Update XP and calculate time to level
+function addon:UpdateXP()
+    local currentXP = UnitXP("player")
+    local newXPGained = currentXP - lastXP
+    if newXPGained > 0 then
+        xpGained = xpGained + newXPGained
+    end
+    lastXP = currentXP
+
+    if xpGained > 0 and timePlayedLevel > 0 then
+        local xpPerHour = (xpGained / timePlayedLevel) * 3600
+        local xpNeeded = UnitXPMax("player") - currentXP
+        if xpNeeded > 0 and xpPerHour > 0 then
+            local timeToLevelSeconds = xpNeeded / xpPerHour * 3600 -- Corrected calculation
+            timeToLevel = self:FormatTime(timeToLevelSeconds)
+        else
+            timeToLevel = L["N/A"]
+        end
+    else
+        timeToLevel = L["Calculating..."]
+    end
+    self:UpdateFrameText()
+end
+
+
+-- Handle level up event
+function addon:LevelUp()
+    timePlayedLevel = 0
+    xpGained = 0
+    timeToLevel = L["Calculating..."]
+    lastXP = UnitXP("player") -- Reset lastXP for the new level
+    self:UpdateFrameText()
+    print(addonName .. ": " .. L["Congratulations on leveling up!"])
+end
+
+-- Update time played counters
+function addon:UpdateTimePlayed()
+    timePlayedTotal = timePlayedTotal + 1
+    timePlayedLevel = timePlayedLevel + 1
+    self:UpdateXP() -- Recalculate TTL every second
+end
+
+-- Format seconds into a readable string (hh:mm:ss)
+function addon:FormatTime(seconds)
+    if not seconds or seconds < 0 then return "00:00:00" end
+    local h = math.floor(seconds / 3600)
+    local m = math.floor((seconds % 3600) / 60)
+    local s = math.floor(seconds % 60)
+    return string.format("%02d:%02d:%02d", h, m, s)
+end
+
+-- Localization
+local L = LibStub("AceLocale-3.0"):NewLocale(addonName, "enUS", true)
+if L then
+    L["Player Progression"] = "Player Progression"
+    L["Current XP: %s / %s\nRested XP: %s"] = "Current XP: %s / %s\nRested XP: %s"
+    L["Time Played (Total): %s\nTime Played (Level): %s\nTime to Level: %s"] = "Time Played (Total): %s\nTime Played (Level): %s\nTime to Level: %s"
+    L["N/A"] = "N/A"
+    L["Calculating..."] = "Calculating..."
+    L["Frame position reset."] = "Frame position reset."
+    L["Usage: /pp [show|hide|reset]"] = "Usage: /pp [show|hide|reset]"
+    L["Congratulations on leveling up!"] = "Congratulations on leveling up!"
+end

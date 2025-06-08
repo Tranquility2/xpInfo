@@ -1,0 +1,12 @@
+## Interface: 11507
+## Title: xpInfo
+## Notes: Displays current player progression, XP, and time to level.
+## Author: Roy Moore
+## Version: 1.0.0
+## SavedVariables: PlayerProgressionDB
+## OptionalDeps: Ace3
+## X-Embeds: Ace3
+
+libs/embeds.xml
+
+xpInfo.lua
