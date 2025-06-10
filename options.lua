@@ -1,12 +1,12 @@
 -- Options to configure the behavior of the script
 function initOptions(addonRef)
-    name = addonRef.name
-    L = addonRef.L
-    frame = addonRef.frame
+    local name = addonRef.name -- Use local for clarity and scope
+    local L = addonRef.L
+    local frame = addonRef.frame
 
     local options = {
         type = "group",
-        name = addonName,
+        name = name,
         width = "normal",
         args = {
             header = {

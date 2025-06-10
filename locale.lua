@@ -3,6 +3,7 @@ local addonName, _ = ...
 local L = LibStub("AceLocale-3.0"):NewLocale(addonName, "enUS", true)
 if not L then return end
 
+-- Localization strings for the addon
 L["Progression"] = "Progression"
 L["Current XP"] = "Current XP"
 L["Rested XP"] = "Rested XP"
@@ -32,3 +33,13 @@ L["Open the XP snapshots viewer."] = "Open the XP snapshots viewer."
 L["Clear"] = "Clear"
 L["Mobs to Level"] = "Mobs to Level"
 L["Mobs to Level: %d (avg %s XP)"] = "Mobs to Level: %d (avg %s XP)"
+
+-- Strings for Snapshot Viewer
+L["Snapshots Viewer"] = "XP Snapshots Viewer"
+L["Close"] = "Close"
+L["No XP snapshots currently recorded."] = "No XP snapshots currently recorded. Gain some XP to see data here."
+L["XP Snapshots (%d of %d max)"] = "XP Snapshots (%d of %d max shown):"
+L["XP"] = "XP"
+L["Time"] = "Time"
+L["No level snapshots recorded."] = "No level snapshots recorded. Gain some levels to see data here."
+L["XP Snapshots for Levels"] = "XP Snapshots for Levels"

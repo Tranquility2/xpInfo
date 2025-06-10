@@ -27,7 +27,7 @@ local timeToLevel = "Calculating..."
 
 -- Called when the addon is initialized
 function addon:OnInitialize()
-    self.db = LibStub("AceDB-3.0"):New(addonName .. "DB", defaults, true)
+    self.db = LibStub("AceDB-3.0"):New(addonName .. "DB", defaults) -- MODIFIED: Use character-specific profiles
     -- Ensure xpSnapshots is initialized if loading old saved variables
     if self.db.profile.xpGainedSamples and not self.db.profile.xpSnapshots then
         self.db.profile.xpSnapshots = {} -- Or attempt migration if necessary
@@ -42,16 +42,18 @@ function addon:OnInitialize()
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnPlayerEnteringWorld")
     self:RegisterEvent("TIME_PLAYED_MSG", "OnTimePlayedMessage")
 
-    self.L = L -- Store the localization table in the addon for easy access
-    self.frame = frame -- Store the frame reference in the addon for easy access
-    options = initOptions(self) -- Initialize options with a reference to this addon
-    LibStub("AceConfig-3.0"):RegisterOptionsTable(addonName, options)
+    -- Store the localization table in the addon for easy access
+    self.L = L
+    -- Create frame first so it's available to options
     self:CreateFrame()
+    -- Now that self.frame is initialized by CreateFrame(), pass self to initOptions
+    local options = initOptions(self) 
+    LibStub("AceConfig-3.0"):RegisterOptionsTable(addonName, options)
 end
 
 -- Called when the addon is enabled
 function addon:OnEnable()
-    if self.db.profile.showFrame then
+    if self.db.profile.showFrame and frame then -- Ensure frame exists
         frame:Show()
     end
     lastXP = UnitXP("player") -- Initialize lastXP
@@ -305,75 +307,104 @@ end
 function addon:snapshotsReport()
     local snapshots = self.db.profile.xpSnapshots
     local maxSamples = self.db.profile.maxSamples
+    local levelSnapshots = self.db.profile.levelSnapshots
 
     if not snapshots or #snapshots == 0 then
-        return "No XP snapshots currently recorded. Gain some XP to see data here." -- TODO: Localize via L["No XP snapshots currently recorded."]
+        return L["No XP snapshots currently recorded."]
     end
     
-    local title = string.format("XP Snapshots (%d of %d max shown):", #snapshots, maxSamples) -- TODO: Localize title string format "XP Snapshots"
+    local title = string.format(L["XP Snapshots (%d of %d max)"], #snapshots, maxSamples)
     local lines = { title }
     
     for i, snap in ipairs(snapshots) do
-        table.insert(lines, string.format("  %d: XP %d, Time %s", i, snap.xp, self:FormatTime(snap.time)))
+        table.insert(lines, string.format("  %d: " .. L["XP"] .. " %d, " .. L["Time"] .. " %s", i, snap.xp, snap.time))
     end
+
+    lines[#lines + 1] = "" -- Add a blank line before level snapshots
+
+    if not levelSnapshots or #levelSnapshots == 0 then
+        return L["No level snapshots recorded."]
+    end
+
+    local levelTitle = L["XP Snapshots for Levels"]
+    lines[#lines + 1] = levelTitle .. " (" .. #levelSnapshots .. " recorded):"
+    for i, snap in ipairs(levelSnapshots) do
+        table.insert(lines, string.format("  %d: {level=%d, time=%0.f}", i, snap.level, snap.time))
+    end
+
     
     return table.concat(lines, "\n")
 end
 
+
 function addon:updateSnapshotsViewer()
-    local reportText = self:snapshotsReport()
-    debugFrame.text:SetText(reportText)
+    if debugFrame and debugFrame.text then -- Check if debugFrame and its text element exist
+        local reportText = self:snapshotsReport()
+        debugFrame.text:SetText(reportText)
+    end
+end
+
+-- Function to create the debug frame and its elements if they don't exist
+function addon:ensureDebugFrameCreated()
+    if not debugFrame then
+        debugFrame = CreateFrame("Frame", addonName .. "DebugFrame", UIParent, "BasicFrameTemplateWithInset")
+        debugFrame:SetWidth(350) -- Increased width slightly for potentially longer raw timestamps
+        debugFrame:SetHeight(250) -- Increased height slightly
+        debugFrame:SetPoint("CENTER", UIParent, "TOP", 0, -150) -- Adjusted position
+        debugFrame:SetMovable(true)
+        debugFrame:EnableMouse(true)
+        debugFrame:RegisterForDrag("LeftButton")
+        debugFrame:SetScript("OnDragStart", debugFrame.StartMoving)
+        debugFrame:SetScript("OnDragStop", function(f)
+            f:StopMovingOrSizing()
+            -- Optionally save debugFrame position if desired, similar to main frame
+        end)
+
+        debugFrame.title = debugFrame:CreateFontString(addonName .. "DebugFrameTitle", "ARTWORK", "GameFontNormalLarge")
+        debugFrame.title:SetPoint("TOP", 0, -5)
+        debugFrame.title:SetText(L["Snapshots Viewer"]) -- LOCALIZED
+
+        debugFrame.text = debugFrame:CreateFontString(addonName .. "DebugFrameText", "ARTWORK", "GameFontNormal")
+        debugFrame.text:SetPoint("TOPLEFT", 15, -30)
+        debugFrame.text:SetJustifyH("LEFT")
+        debugFrame.text:SetWidth(debugFrame:GetWidth() - 30) -- Adjust width based on frame
+
+        -- Close button
+        local closeButton = CreateFrame("Button", addonName .. "DebugCloseButton", debugFrame, "UIPanelButtonTemplate")
+        closeButton:SetText(L["Close"]) -- LOCALIZED
+        closeButton:SetWidth(80)
+        closeButton:SetHeight(20)
+        closeButton:SetPoint("BOTTOMRIGHT", -10, 10)
+        closeButton:SetScript("OnClick", function()
+            debugFrame:Hide()
+        end)
+
+        -- Button to clear snapshots
+        local clearButton = CreateFrame("Button", addonName .. "DebugClearButton", debugFrame, "UIPanelButtonTemplate")
+        clearButton:SetText(L["Clear"]) -- Already localized, good
+        clearButton:SetWidth(100)
+        clearButton:SetHeight(20)
+        clearButton:SetPoint("BOTTOMLEFT", 10, 10)
+        clearButton:SetScript("OnClick", function()
+            self.db.profile.xpSnapshots = {} -- Clear the snapshots
+            print(addonName .. ": " .. L["All XP snapshots cleared."]) -- LOCALIZED
+            self:UpdateFrameText() -- Update the main frame text
+            self:updateSnapshotsViewer() -- Update the debug frame text
+        end)
+        debugFrame:Hide() -- Start hidden after creation
+    end
 end
 
 function addon:snapshotsViewerBuidler()
-    if debugFrame and debugFrame:IsShown() then
-        debugFrame:Hide() -- Hide if already shown
-        return
-    end
-    debugFrame = CreateFrame("Frame", addonName .. "DebugFrame", UIParent, "BasicFrameTemplateWithInset")
-    debugFrame:SetWidth(300)
-    debugFrame:SetHeight(200)
-    debugFrame:SetPoint("CENTER", UIParent, "TOP", 0, -100)
-    debugFrame:Hide() -- Start hidden
+    self:ensureDebugFrameCreated() -- Create the frame if it doesn't exist
 
-    debugFrame.title = debugFrame:CreateFontString(addonName .. "DebugFrameTitle", "ARTWORK", "GameFontNormalLarge")
-    debugFrame.title:SetPoint("TOP", 0, -5)
-    debugFrame.title:SetText("XP Snapshots Viewer")
-
-    debugFrame.text = debugFrame:CreateFontString(addonName .. "DebugFrameText", "ARTWORK", "GameFontNormal")
-    debugFrame.text:SetPoint("TOPLEFT", 15, -30)
-    debugFrame.text:SetJustifyH("LEFT")
-    debugFrame.text:SetWidth(270) -- Set width to allow wrapping
-
-    -- Close button
-    local closeButton = CreateFrame("Button", addonName .. "DebugCloseButton", debugFrame, "UIPanelButtonTemplate")
-    closeButton:SetText("Close")
-    closeButton:SetWidth(80)
-    closeButton:SetHeight(20)
-    closeButton:SetPoint("BOTTOMRIGHT", -10, 10)
-
-    closeButton:SetScript("OnClick", function()
+    if debugFrame:IsShown() then
         debugFrame:Hide()
-    end)
-
-    -- Update the text in the viewer
-    addon:updateSnapshotsViewer()
-
-    -- Button to clear snapshots
-    local clearButton = CreateFrame("Button", addonName .. "DebugClearButton", debugFrame, "UIPanelButtonTemplate")
-    clearButton:SetText(L["Clear"])
-    clearButton:SetWidth(100)
-    clearButton:SetHeight(20)
-    clearButton:SetPoint("BOTTOMLEFT", 10, 10)
-    clearButton:SetScript("OnClick", function()
-        self.db.profile.xpSnapshots = {} -- Clear the snapshots
-        print(addonName .. ": " .. L["All XP snapshots cleared."]) -- TODO: Localize this message
-        self:UpdateFrameText() -- Update the main frame text
-        addon:updateSnapshotsViewer() -- Update the debug frame text
-    end)
-
-    -- Show the frame
-    debugFrame:Show()
+    else
+        self:updateSnapshotsViewer() -- Update content before showing
+        debugFrame:Show()
+        debugFrame:Raise() -- Bring to front
+    end
 end
 
 -- Handle level up event
