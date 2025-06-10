@@ -18,6 +18,13 @@ if L then
     L["Settings"] = "Settings"
     L["Max XP Samples"] = "Max XP Samples"
     L["Set the maximum number of recent XP gains to store."] = "Set the maximum number of recent XP gains to store."
+    L["Show Frame"] = "Show Frame"
+    L["Toggle the visibility of the player progression frame."] = "Toggle the visibility of the player progression frame."
+    L["Frame Position"] = "Frame Position"
+    L["Set the position of the frame (e.g., 'CENTER', 'UIParent', 'CENTER', 0, 0)"] = "Set the position of the frame (e.g., 'CENTER', 'UIParent', 'CENTER', 0, 0)"
+    L["Profile"] = "Profile"
+    L["Profile Settings"] = "Profile Settings"
+    L["Configure profile-specific settings."] = "Configure profile-specific settings."
 end
 -- After NewLocale, GetLocale can be called.
 L = LibStub("AceLocale-3.0"):GetLocale(addonName)
@@ -51,6 +58,8 @@ function addon:OnInitialize()
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnPlayerEnteringWorld")
     self:RegisterEvent("TIME_PLAYED_MSG", "OnTimePlayedMessage")
 
+    local addonRef = self -- Capture self for use in get/set functions
+
     -- ADDED Options Panel Setup
     local profileSpecificOptions = {
         maxSamples = {
@@ -61,19 +70,53 @@ function addon:OnInitialize()
             min = 1,
             max = 10,
             step = 1,
-            -- AceDBOptions will handle get/set for self.db.profile.maxSamples
+            get = function(info)
+                return addonRef.db.profile.maxSamples
+            end,
+            set = function(info, value)
+                addonRef.db.profile.maxSamples = value
+                addonRef:UpdateXP() -- Refresh XP data and potentially prune samples
+            end,
         }
     }
 
+    -- ADDED Options Table that includes the maxSamples option
     local options = {
-        name = addonName .. " - " .. L["Settings"], -- Title for the options panel
-        handler = addon, 
         type = "group",
+        name = addonName,
         args = {
-            -- AceDBOptions integrates with AceConfig to handle profile settings
-            profile = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db, profileSpecificOptions, "profile")
-        }
+            header = {
+                type = "header",
+                order = 0,
+                name = L["Settings"],
+            },
+            showFrame = {
+                type = "toggle",
+                order = 1,
+                name = L["Show Frame"],
+                desc = L["Toggle the visibility of the player progression frame."],
+                get = function() return addonRef.db.profile.showFrame end,
+                set = function(_, value)
+                    addonRef.db.profile.showFrame = value
+                    if value then
+                        frame:Show()
+                    else
+                        frame:Hide()
+                    end
+                end,
+            },
+            maxSamplesOption = profileSpecificOptions.maxSamples,
+        },
     }
+
+    -- print debug message on maxSamples change
+    local function onMaxSamplesChanged()
+        print(addonName .. ": Max XP Samples changed to " .. addonRef.db.profile.maxSamples)
+    end
+    options.args.maxSamplesOption.set = function(info, value)
+        addonRef.db.profile.maxSamples = value
+        onMaxSamplesChanged() -- Call the debug message function
+    end
 
     LibStub("AceConfig-3.0"):RegisterOptionsTable(addonName, options)
 
