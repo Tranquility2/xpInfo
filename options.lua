@@ -44,7 +44,7 @@ function initOptions(addonRef)
                     addonRef.db.profile.maxSamples = value
                     -- Debug print to confirm change
                     -- print(addonName .. ": Max XP Snapshots changed to " .. addonRef.db.profile.maxSamples)
-                    
+
                     -- Prune snapshots if new maxSamples is less than current number of snapshots
                     if addonRef.db.profile.xpSnapshots then
                         while #addonRef.db.profile.xpSnapshots > addonRef.db.profile.maxSamples do
@@ -54,17 +54,18 @@ function initOptions(addonRef)
                     addonRef:UpdateXP() 
                 end,
             },
-            ResetDataBase = {
-                type = "execute",
-                order = 40,
-                name = L["Reset Data"],
-                desc = L["Reset the database and clear all stored data."],
-                func = function()
-                    addonRef.db:ResetProfile()
-                    addonRef:Print(L["Database reset."])
-                    addonRef:UpdateXP() -- Refresh XP display
-                end,
-            },
+            -- ResetDataBase = {
+            --     type = "execute",
+            --     order = 40,
+            --     name = L["Reset Data"],
+            --     desc = L["Reset the database and clear all stored data."],
+            --     func = function()
+            --         addonRef.db:ResetProfile()
+            --         addonRef:Print(L["Database reset."])
+            --         addonRef:UpdateXP() -- Refresh XP display
+            --     end,
+            -- },
+            profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(addonRef.db)
         },
     }
 
