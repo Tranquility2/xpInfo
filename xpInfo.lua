@@ -16,6 +16,7 @@ local defaults = {
 
 -- Frame
 local frame
+local debugFrame
 
 -- Time tracking
 local timePlayedTotal = 0
@@ -43,38 +44,18 @@ function addon:OnInitialize()
 
     local addonRef = self
 
-    local function snapshotsViewerBuidler()
-        local snapshots = addonRef.db.profile.xpSnapshots
-        local maxSamples = addonRef.db.profile.maxSamples
-
-        if not snapshots or #snapshots == 0 then
-            return "No XP snapshots currently recorded. Gain some XP to see data here." -- TODO: Localize via L["No XP snapshots currently recorded."]
-        end
-        
-        -- TODO: Localize title string format "XP Snapshots (%d of %d max shown):"
-        local title = string.format("XP Snapshots (%d of %d max shown):", #snapshots, maxSamples)
-        local lines = { title }
-        
-        for i, snap in ipairs(snapshots) do
-            -- TODO: Localize snapshot line string format "  %d: XP %d, Time %s"
-            table.insert(lines, string.format("  %d: XP %d, Time %s", i, snap.xp, addonRef:FormatTime(snap.time)))
-            print(string.format("Snapshot %d: {xp=%d, time=%0.f}", i, snap.xp, snap.time)) -- Debug print
-        end
-        return table.concat(lines, "\n")
-    end
-
     local options = {
         type = "group",
         name = addonName,
         args = {
             header = {
                 type = "header",
-                order = 10, -- CHANGED: Explicit order
+                order = 10,
                 name = L["Settings"],
             },
             showFrame = {
                 type = "toggle",
-                order = 20, -- CHANGED: Explicit order
+                order = 20, 
                 name = L["Show Frame"],
                 desc = L["Toggle the visibility of the player progression frame."],
                 get = function() return addonRef.db.profile.showFrame end,
@@ -89,7 +70,7 @@ function addon:OnInitialize()
             },
             maxSamples = {
                 type = "range",
-                order = 30, -- CHANGED: Explicit order for settings layout
+                order = 30, 
                 name = L["Max XP Snapshots"], -- CHANGED text
                 desc = L["Set the maximum number of recent XP snapshots to store for rate calculation."], -- CHANGED text
                 min = 2, -- Need at least 2 for a rate
@@ -112,11 +93,24 @@ function addon:OnInitialize()
                 end,
             },
             snapshotsViewer = {
-                type = "description",
-                order = 40, -- Placed after Max XP Snapshots
-                width = "full", -- Use full width for better display
-                name = snapshotsViewerBuidler(), -- Use the function to generate the text
-                fontSize = "medium", -- Use medium font size for better readability
+                type = "execute",
+                order = 40,
+                name = L["View Snapshots"],
+                desc = L["Open the XP snapshots viewer."],
+                func = function()
+                    addonRef:snapshotsViewerBuidler() -- Call the viewer builder function
+                end,
+            },
+            snapshotsClear = {
+                type = "execute",
+                order = 50,
+                name = L["Clear Snapshots"],
+                desc = L["Clear all stored XP snapshots."],
+                func = function()
+                    addonRef.db.profile.xpSnapshots = {}
+                    print(addonName .. ": " .. L["All XP snapshots cleared."])
+                    addonRef:UpdateXP() -- Update the frame text after clearing
+                end,
             },
         },
     }
@@ -339,6 +333,63 @@ function addon:UpdateXP()
     
     self:UpdateFrameText()
 end
+
+-- Function to build the snapshots report text
+function addon:snapshotsReport()
+    local snapshots = self.db.profile.xpSnapshots
+    local maxSamples = self.db.profile.maxSamples
+
+    if not snapshots or #snapshots == 0 then
+        return "No XP snapshots currently recorded. Gain some XP to see data here." -- TODO: Localize via L["No XP snapshots currently recorded."]
+    end
+    
+    local title = string.format("XP Snapshots (%d of %d max shown):", #snapshots, maxSamples) -- TODO: Localize title string format "XP Snapshots"
+    local lines = { title }
+    
+    for i, snap in ipairs(snapshots) do
+        table.insert(lines, string.format("  %d: XP %d, Time %s", i, snap.xp, self:FormatTime(snap.time)))
+        print(string.format("Snapshot %d: {xp=%d, time=%0.f}", i, snap.xp, snap.time)) -- Debug print
+    end
+    return table.concat(lines, "\n")
+end
+
+function addon:snapshotsViewerBuidler()
+    if not debugFrame then
+        debugFrame = CreateFrame("Frame", addonName .. "DebugFrame", UIParent, "BasicFrameTemplateWithInset")
+        debugFrame:SetWidth(300)
+        debugFrame:SetHeight(200)
+        debugFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+        debugFrame:Hide() -- Start hidden
+
+        debugFrame.title = debugFrame:CreateFontString(addonName .. "DebugFrameTitle", "ARTWORK", "GameFontNormalLarge")
+        debugFrame.title:SetPoint("TOP", 0, -5)
+        debugFrame.title:SetText("XP Snapshots Viewer")
+
+        debugFrame.text = debugFrame:CreateFontString(addonName .. "DebugFrameText", "ARTWORK", "GameFontNormal")
+        debugFrame.text:SetPoint("TOPLEFT", 15, -30)
+        debugFrame.text:SetJustifyH("LEFT")
+        debugFrame.text:SetWidth(270) -- Set width to allow wrapping
+
+        -- Close button
+        local closeButton = CreateFrame("Button", addonName .. "DebugCloseButton", debugFrame, "UIPanelButtonTemplate")
+        closeButton:SetText("Close")
+        closeButton:SetWidth(80)
+        closeButton:SetHeight(20)
+        closeButton:SetPoint("BOTTOMRIGHT", -10, 10)
+
+        closeButton:SetScript("OnClick", function()
+            debugFrame:Hide()
+        end)
+    end
+
+    -- Update the text in the viewer
+    local reportText = self:snapshotsReport()
+    debugFrame.text:SetText(reportText)
+
+    -- Show the frame
+    debugFrame:Show()
+end
+
 
 
 -- Handle level up event
