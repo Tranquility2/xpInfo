@@ -21,7 +21,6 @@ if L then
     L["Show Frame"] = "Show Frame"
     L["Toggle the visibility of the player progression frame."] = "Toggle the visibility of the player progression frame."
     L["Frame Position"] = "Frame Position"
-    L["Set the position of the frame (e.g., 'CENTER', 'UIParent', 'CENTER', 0, 0)"] = "Set the position of the frame (e.g., 'CENTER', 'UIParent', 'CENTER', 0, 0)"
     L["Profile"] = "Profile"
     L["Profile Settings"] = "Profile Settings"
     L["Configure profile-specific settings."] = "Configure profile-specific settings."
@@ -172,15 +171,28 @@ function addon:CreateFrame()
     frame.timeText:SetPoint("TOPLEFT", frame.xpText, "BOTTOMLEFT", 0, -5)
     frame.timeText:SetJustifyH("LEFT")
 
-    -- ADDED: Refresh button to manually update time played
+    -- Reposition Refresh button and add Settings button
     frame.refreshButton = CreateFrame("Button", addonName .. "RefreshButton", frame, "UIPanelButtonTemplate")
     frame.refreshButton:SetText(L["Refresh"])
     frame.refreshButton:SetWidth(80)
     frame.refreshButton:SetHeight(20)
-    frame.refreshButton:SetPoint("TOP", frame.timeText, "BOTTOM", 0, -10) -- Position below timeText
+    -- Position refresh button to the left, below timeText
+    frame.refreshButton:SetPoint("TOPRIGHT", frame.timeText, "BOTTOM", -5, -15) 
 
     frame.refreshButton:SetScript("OnClick", function()
         RequestTimePlayed()
+    end)
+
+    -- ADDED: Settings button
+    frame.settingsButton = CreateFrame("Button", addonName .. "SettingsButton", frame, "UIPanelButtonTemplate")
+    frame.settingsButton:SetText(L["Settings"])
+    frame.settingsButton:SetWidth(80)
+    frame.settingsButton:SetHeight(20)
+    -- Position settings button to the right of refresh button, below timeText
+    frame.settingsButton:SetPoint("TOPLEFT", frame.timeText, "BOTTOM", 5, -15)
+
+    frame.settingsButton:SetScript("OnClick", function()
+        LibStub("AceConfigDialog-3.0"):Open(addonName)
     end)
 
     frame:SetScript("OnHide", function(f) -- f is the frame itself
