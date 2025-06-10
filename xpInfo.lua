@@ -1,4 +1,3 @@
--- Get the addon object
 local addonName, addonTable = ...
 local addon = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0", "AceEvent-3.0")
 
@@ -6,14 +5,19 @@ local addon = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0", "Ace
 local L = LibStub("AceLocale-3.0"):NewLocale(addonName, "enUS", true)
 if L then
     L["Player Progression"] = "Player Progression"
-    L["Current XP: %s / %s\nRested XP: %s"] = "Current XP: %s / %s\nRested XP: %s"
-    L["Time Played (Total): %s\nTime Played (Level): %s\nTime to Level: %s"] = "Time Played (Total): %s\nTime Played (Level): %s\nTime to Level: %s"
+    L["Current XP"] = "Current XP"
+    L["Rested XP"] = "Rested XP"
+    L["Time Played (Total)"] = "Time Played (Total)"
+    L["Time Played (Level)"] = "Time Played (Level)"
+    L["Time to Level"] = "Time to Level"
     L["N/A"] = "N/A"
     L["Calculating..."] = "Calculating..."
-    L["Frame position reset."] = "Frame position reset."
-    L["Usage: /pp [show|hide|reset]"] = "Usage: /xpi [show|hide|reset]"
+    L["Usage: /xpi [show|hide|reset|config]"] = "Usage: /xpi [show|hide|reset|config]"
     L["Congratulations on leveling up!"] = "Congratulations on leveling up!"
-    L["Refresh"] = "Refresh" -- ADDED
+    L["Refresh"] = "Refresh"
+    L["Settings"] = "Settings"
+    L["Max XP Samples"] = "Max XP Samples"
+    L["Set the maximum number of recent XP gains to store."] = "Set the maximum number of recent XP gains to store."
 end
 -- After NewLocale, GetLocale can be called.
 L = LibStub("AceLocale-3.0"):GetLocale(addonName)
@@ -23,6 +27,8 @@ local defaults = {
     profile = {
         showFrame = true,
         framePosition = { "CENTER", UIParent, "CENTER", 0, 0 },
+        xpGainedSamples = {},
+        maxSamples = 5,       -- ADDED: Default number of XP samples to store (slider 1-10)
     }
 }
 
@@ -43,9 +49,34 @@ function addon:OnInitialize()
     self:RegisterEvent("PLAYER_XP_UPDATE", "UpdateXP")
     self:RegisterEvent("PLAYER_LEVEL_UP", "LevelUp")
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnPlayerEnteringWorld")
-    self:RegisterEvent("TIME_PLAYED_MSG", "OnTimePlayedMessage") -- Ensure this is registered
+    self:RegisterEvent("TIME_PLAYED_MSG", "OnTimePlayedMessage")
 
-    -- Create the frame
+    -- ADDED Options Panel Setup
+    local profileSpecificOptions = {
+        maxSamples = {
+            type = "range",
+            order = 1,
+            name = L["Max XP Samples"],
+            desc = L["Set the maximum number of recent XP gains to store."],
+            min = 1,
+            max = 10,
+            step = 1,
+            -- AceDBOptions will handle get/set for self.db.profile.maxSamples
+        }
+    }
+
+    local options = {
+        name = addonName .. " - " .. L["Settings"], -- Title for the options panel
+        handler = addon, 
+        type = "group",
+        args = {
+            -- AceDBOptions integrates with AceConfig to handle profile settings
+            profile = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db, profileSpecificOptions, "profile")
+        }
+    }
+
+    LibStub("AceConfig-3.0"):RegisterOptionsTable(addonName, options)
+
     self:CreateFrame()
 end
 
@@ -98,7 +129,7 @@ function addon:CreateFrame()
     frame.timeText:SetPoint("TOPLEFT", frame.xpText, "BOTTOMLEFT", 0, -5)
     frame.timeText:SetJustifyH("LEFT")
 
-    -- Refresh Button -- ADDED BLOCK
+    -- ADDED: Refresh button to manually update time played
     frame.refreshButton = CreateFrame("Button", addonName .. "RefreshButton", frame, "UIPanelButtonTemplate")
     frame.refreshButton:SetText(L["Refresh"])
     frame.refreshButton:SetWidth(80)
@@ -107,9 +138,7 @@ function addon:CreateFrame()
 
     frame.refreshButton:SetScript("OnClick", function()
         RequestTimePlayed()
-        -- addon:Print("Refresh clicked, requesting time data.") -- Optional debug
     end)
-    -- END ADDED BLOCK
 
     frame:SetScript("OnHide", function(f) -- f is the frame itself
         addon.db.profile.showFrame = false
@@ -126,17 +155,29 @@ function addon:UpdateFrameText()
     local maxXP = UnitXPMax("player")
     local restedXP = GetXPExhaustion() or 0
 
-    local xpString = string.format(L["Current XP: %s / %s\nRested XP: %s"], currentXP, maxXP, restedXP)
+    local currentXPPerc = 0
+    local restedXPPerc = 0
+
+    if maxXP > 0 then
+        currentXPPerc = (currentXP / maxXP) * 100
+        restedXPPerc = (restedXP / maxXP) * 100
+    end
+
+    local xpString = string.format(L["Current XP"] .. ": %s / %s (%s%%)\n" .. L["Rested XP"] .. ": %s (%s%%)", 
+                                   currentXP, 
+                                   maxXP, 
+                                   string.format("%.1f", currentXPPerc), 
+                                   restedXP, 
+                                   string.format("%.1f", restedXPPerc))
     frame.xpText:SetText(xpString)
 
     local timePlayedTotalString = self:FormatTime(timePlayedTotal)
     local timePlayedLevelString = self:FormatTime(timePlayedLevel)
 
-    local timeString = string.format(L["Time Played (Total): %s\nTime Played (Level): %s\nTime to Level: %s"],
+    local timeString = string.format(L["Time Played (Total)"] .. ": %s\n" .. L["Time Played (Level)"] .. ": %s\n" .. L["Time to Level"] .. ": %s",
                                    timePlayedTotalString, timePlayedLevelString, timeToLevel)
     frame.timeText:SetText(timeString)
     
-    -- Adjusted height calculation -- MODIFIED LINE
     local titleH = frame.title:GetStringHeight()
     local xpTextH = frame.xpText:GetStringHeight()
     local timeTextH = frame.timeText:GetStringHeight()
@@ -158,11 +199,15 @@ function addon:ChatCommand(input)
     elseif input == "reset" then
         -- Reset frame position or other settings if needed
         self.db.profile.framePosition = defaults.profile.framePosition
+        -- Also reset maxSamples to default if desired, or handle via a full profile reset option later
+        -- self.db.profile.maxSamples = defaults.profile.maxSamples 
         frame:ClearAllPoints()
         frame:SetPoint(unpack(self.db.profile.framePosition))
         print(addonName .. ": " .. L["Frame position reset."])
+    elseif input == "config" then -- ADDED command to open config
+        LibStub("AceConfigDialog-3.0"):Open(addonName)
     else
-        print(addonName .. ": " .. L["Usage: /pp [show|hide|reset]"])
+        print(addonName .. ": " .. L["Usage: /xpi [show|hide|reset|config]"]) -- MODIFIED usage text
     end
 end
 
@@ -172,6 +217,20 @@ function addon:UpdateXP()
     local newXPGained = currentXP - lastXP
     if newXPGained > 0 then
         xpGained = xpGained + newXPGained
+
+        -- Store the sample of newXPGained
+        if not self.db.profile.xpGainedSamples then
+            self.db.profile.xpGainedSamples = {}
+        end
+        table.insert(self.db.profile.xpGainedSamples, newXPGained)
+        
+        local maxSamples = self.db.profile.maxSamples 
+        -- Fallback if the value is somehow not set (AceDB defaults should prevent this)
+        if not maxSamples or maxSamples < 1 or maxSamples > 10 then maxSamples = defaults.profile.maxSamples end 
+
+        while #self.db.profile.xpGainedSamples > maxSamples do
+            table.remove(self.db.profile.xpGainedSamples, 1) -- Remove the oldest
+        end
     end
     lastXP = currentXP
 
@@ -216,7 +275,7 @@ function addon:OnTimePlayedMessage(event, totalTimeArg, levelTimeArg)
         timePlayedTotal = totalTimeArg
         timePlayedLevel = levelTimeArg
     end
-    self:UpdateXP()           -- This will update calculations and then call UpdateFrameText
+    self:UpdateXP() -- This will update calculations and then call UpdateFrameText
 end
 
 -- Format seconds into a readable string (hh:mm:ss)
