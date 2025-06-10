@@ -35,7 +35,7 @@ L["Mobs to Level"] = "Mobs to Level"
 L["Mobs to Level: %d (avg %s XP)"] = "Mobs to Level: %d (avg %s XP)"
 
 -- Strings for Snapshot Viewer
-L["Snapshots Viewer"] = "XP Snapshots Viewer"
+L["Snapshots Viewer"] = "Snapshots Viewer"
 L["Close"] = "Close"
 L["No XP snapshots currently recorded."] = "No XP snapshots currently recorded. Gain some XP to see data here."
 L["XP Snapshots (%d of %d max)"] = "XP Snapshots (%d of %d max shown):"
@@ -43,3 +43,8 @@ L["XP"] = "XP"
 L["Time"] = "Time"
 L["No level snapshots recorded."] = "No level snapshots recorded. Gain some levels to see data here."
 L["XP Snapshots for Levels"] = "XP Snapshots for Levels"
+
+-- Strings for options
+L["Reset Data"] = "Reset Data"
+L["Reset the database and clear all stored data."] = "Reset the database and clear all stored data."
+L["Database reset."] = "Database reset."
