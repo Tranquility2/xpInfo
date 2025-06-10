@@ -43,30 +43,25 @@ function addon:OnInitialize()
 
     local addonRef = self
 
-    local profileSpecificOptions = {
-        maxSamples = {
-            type = "range",
-            order = 1,
-            name = L["Max XP Snapshots"], -- CHANGED text
-            desc = L["Set the maximum number of recent XP snapshots to store for rate calculation."], -- CHANGED text
-            min = 2, -- Need at least 2 for a rate
-            max = 10,
-            step = 1,
-            get = function(info)
-                return addonRef.db.profile.maxSamples
-            end,
-            set = function(info, value)
-                addonRef.db.profile.maxSamples = value
-                -- Prune snapshots if new maxSamples is less than current number of snapshots
-                if addonRef.db.profile.xpSnapshots then
-                    while #addonRef.db.profile.xpSnapshots > addonRef.db.profile.maxSamples do
-                        table.remove(addonRef.db.profile.xpSnapshots, 1)
-                    end
-                end
-                addonRef:UpdateXP() 
-            end,
-        }
-    }
+    local function snapshotsViewerBuidler()
+        local snapshots = addonRef.db.profile.xpSnapshots
+        local maxSamples = addonRef.db.profile.maxSamples
+
+        if not snapshots or #snapshots == 0 then
+            return "No XP snapshots currently recorded. Gain some XP to see data here." -- TODO: Localize via L["No XP snapshots currently recorded."]
+        end
+        
+        -- TODO: Localize title string format "XP Snapshots (%d of %d max shown):"
+        local title = string.format("XP Snapshots (%d of %d max shown):", #snapshots, maxSamples)
+        local lines = { title }
+        
+        for i, snap in ipairs(snapshots) do
+            -- TODO: Localize snapshot line string format "  %d: XP %d, Time %s"
+            table.insert(lines, string.format("  %d: XP %d, Time %s", i, snap.xp, addonRef:FormatTime(snap.time)))
+            print(string.format("Snapshot %d: {xp=%d, time=%0.f}", i, snap.xp, snap.time)) -- Debug print
+        end
+        return table.concat(lines, "\n")
+    end
 
     local options = {
         type = "group",
@@ -74,12 +69,12 @@ function addon:OnInitialize()
         args = {
             header = {
                 type = "header",
-                order = 0,
+                order = 10, -- CHANGED: Explicit order
                 name = L["Settings"],
             },
             showFrame = {
                 type = "toggle",
-                order = 1,
+                order = 20, -- CHANGED: Explicit order
                 name = L["Show Frame"],
                 desc = L["Toggle the visibility of the player progression frame."],
                 get = function() return addonRef.db.profile.showFrame end,
@@ -92,24 +87,39 @@ function addon:OnInitialize()
                     end
                 end,
             },
-            maxSamplesOption = profileSpecificOptions.maxSamples,
+            maxSamples = {
+                type = "range",
+                order = 30, -- CHANGED: Explicit order for settings layout
+                name = L["Max XP Snapshots"], -- CHANGED text
+                desc = L["Set the maximum number of recent XP snapshots to store for rate calculation."], -- CHANGED text
+                min = 2, -- Need at least 2 for a rate
+                max = 10,
+                step = 1,
+                get = function(info)
+                    return addonRef.db.profile.maxSamples
+                end,
+                set = function(info, value)
+                    addonRef.db.profile.maxSamples = value
+                    -- Debug print to confirm change
+                    print(addonName .. ": Max XP Snapshots changed to " .. addonRef.db.profile.maxSamples)
+                    -- Prune snapshots if new maxSamples is less than current number of snapshots
+                    if addonRef.db.profile.xpSnapshots then
+                        while #addonRef.db.profile.xpSnapshots > addonRef.db.profile.maxSamples do
+                            table.remove(addonRef.db.profile.xpSnapshots, 1)
+                        end
+                    end
+                    addonRef:UpdateXP() 
+                end,
+            },
+            snapshotsViewer = {
+                type = "description",
+                order = 40, -- Placed after Max XP Snapshots
+                width = "full", -- Use full width for better display
+                name = snapshotsViewerBuidler(), -- Use the function to generate the text
+                fontSize = "medium", -- Use medium font size for better readability
+            },
         },
     }
-
-    local function onMaxSamplesChanged()
-        print(addonName .. ": Max XP Snapshots changed to " .. addonRef.db.profile.maxSamples)
-    end
-    options.args.maxSamplesOption.set = function(info, value)
-        addonRef.db.profile.maxSamples = value
-        onMaxSamplesChanged()
-        -- Prune snapshots if new maxSamples is less than current number of snapshots
-        if addonRef.db.profile.xpSnapshots then
-            while #addonRef.db.profile.xpSnapshots > addonRef.db.profile.maxSamples do
-                table.remove(addonRef.db.profile.xpSnapshots, 1)
-            end
-        end
-        addonRef:UpdateXP()
-    end
 
     LibStub("AceConfig-3.0"):RegisterOptionsTable(addonName, options)
     self:CreateFrame()
@@ -313,7 +323,6 @@ function addon:UpdateXP()
             deltaXP = deltaXP + self.db.profile.xpSnapshots[i].xp
         end
         deltaXP = deltaXP / (#self.db.profile.xpSnapshots - 1) -- Average change in XP per snapshot
-        print("Delta XP: " .. deltaXP) -- Debug print to see if we have valid deltas
         local deltaTime = latestSnapshot.time - oldestSnapshot.time
 
         if deltaTime > 0 and deltaXP > 0 then
@@ -323,7 +332,6 @@ function addon:UpdateXP()
             timeToLevel = self:FormatTime(timeToLevelSeconds)
         else
             timeToLevel = L["Calculating..."] -- Not enough change in XP/time or deltaTime was zero
-            print(latestSnapshot.xp, oldestSnapshot.xp) -- Debug print to see if we have valid deltas
         end
     else
         timeToLevel = L["Calculating..."] -- Not enough snapshots to calculate rate
