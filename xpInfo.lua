@@ -1,32 +1,8 @@
 local addonName, addonTable = ...
 local addon = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0", "AceEvent-3.0")
 
--- Localization
-local L = LibStub("AceLocale-3.0"):NewLocale(addonName, "enUS", true)
-if L then
-    L["Player Progression"] = "Player Progression"
-    L["Current XP"] = "Current XP"
-    L["Rested XP"] = "Rested XP"
-    L["Time Played (Total)"] = "Time Played (Total)"
-    L["Time Played (Level)"] = "Time Played (Level)"
-    L["Time to Level"] = "Time to Level"
-    L["N/A"] = "N/A"
-    L["Calculating..."] = "Calculating..."
-    L["Usage: /xpi [show|hide|reset|config]"] = "Usage: /xpi [show|hide|reset|config]"
-    L["Congratulations on leveling up!"] = "Congratulations on leveling up!"
-    L["Refresh"] = "Refresh"
-    L["Settings"] = "Settings"
-    L["Max XP Samples"] = "Max XP Samples"
-    L["Set the maximum number of recent XP gains to store."] = "Set the maximum number of recent XP gains to store."
-    L["Show Frame"] = "Show Frame"
-    L["Toggle the visibility of the player progression frame."] = "Toggle the visibility of the player progression frame."
-    L["Frame Position"] = "Frame Position"
-    L["Profile"] = "Profile"
-    L["Profile Settings"] = "Profile Settings"
-    L["Configure profile-specific settings."] = "Configure profile-specific settings."
-end
--- After NewLocale, GetLocale can be called.
-L = LibStub("AceLocale-3.0"):GetLocale(addonName)
+-- Localization: L will be populated by locale.lua
+local L = LibStub("AceLocale-3.0"):GetLocale(addonName)
 
 -- Default database values
 local defaults = {
@@ -278,6 +254,8 @@ function addon:UpdateXP()
             self.db.profile.xpGainedSamples = {}
         end
         table.insert(self.db.profile.xpGainedSamples, newXPGained)
+        --deubg print the list of xpGainedSamples
+        print(addonName .. ": New XP Gained Sample: " .. newXPGained)
         
         local maxSamples = self.db.profile.maxSamples 
         -- Fallback if the value is somehow not set (AceDB defaults should prevent this)
