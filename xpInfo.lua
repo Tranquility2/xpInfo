@@ -47,6 +47,7 @@ function addon:OnInitialize()
     local options = {
         type = "group",
         name = addonName,
+        width = "normal",
         args = {
             header = {
                 type = "header",
@@ -74,7 +75,7 @@ function addon:OnInitialize()
                 name = L["Max XP Snapshots"], -- CHANGED text
                 desc = L["Set the maximum number of recent XP snapshots to store for rate calculation."], -- CHANGED text
                 min = 2, -- Need at least 2 for a rate
-                max = 10,
+                max = 20,
                 step = 1,
                 get = function(info)
                     return addonRef.db.profile.maxSamples
@@ -90,26 +91,6 @@ function addon:OnInitialize()
                         end
                     end
                     addonRef:UpdateXP() 
-                end,
-            },
-            snapshotsViewer = {
-                type = "execute",
-                order = 40,
-                name = L["View Snapshots"],
-                desc = L["Open the XP snapshots viewer."],
-                func = function()
-                    addonRef:snapshotsViewerBuidler() -- Call the viewer builder function
-                end,
-            },
-            snapshotsClear = {
-                type = "execute",
-                order = 50,
-                name = L["Clear Snapshots"],
-                desc = L["Clear all stored XP snapshots."],
-                func = function()
-                    addonRef.db.profile.xpSnapshots = {}
-                    print(addonName .. ": " .. L["All XP snapshots cleared."])
-                    addonRef:UpdateXP() -- Update the frame text after clearing
                 end,
             },
         },
@@ -132,7 +113,7 @@ end
 -- Create the UI frame
 function addon:CreateFrame()
     frame = CreateFrame("Frame", addonName .. "Frame", UIParent, "BasicFrameTemplateWithInset")
-    frame:SetWidth(250)
+    frame:SetWidth(300)
     frame:SetHeight(200) -- Initial height, will be adjusted by UpdateFrameText
     frame:SetPoint(unpack(self.db.profile.framePosition))
     frame:SetMovable(true)
@@ -172,28 +153,34 @@ function addon:CreateFrame()
     frame.timeText:SetPoint("TOPLEFT", frame.remainingText, "BOTTOMLEFT", 0, -5)
     frame.timeText:SetJustifyH("LEFT")
 
-    -- Reposition Refresh button and add Settings button
+    -- Refresh button 
     frame.refreshButton = CreateFrame("Button", addonName .. "RefreshButton", frame, "UIPanelButtonTemplate")
     frame.refreshButton:SetText(L["Refresh"])
     frame.refreshButton:SetWidth(80)
     frame.refreshButton:SetHeight(20)
-    -- Position refresh button to the left, below timeText
-    frame.refreshButton:SetPoint("TOPRIGHT", frame.timeText, "BOTTOM", -5, -15) 
-
+    frame.refreshButton:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 10, 15)
     frame.refreshButton:SetScript("OnClick", function()
         RequestTimePlayed()
     end)
 
-    -- ADDED: Settings button
+    -- Settings button
     frame.settingsButton = CreateFrame("Button", addonName .. "SettingsButton", frame, "UIPanelButtonTemplate")
     frame.settingsButton:SetText(L["Settings"])
     frame.settingsButton:SetWidth(80)
     frame.settingsButton:SetHeight(20)
-    -- Position settings button to the right of refresh button, below timeText
-    frame.settingsButton:SetPoint("TOPLEFT", frame.timeText, "BOTTOM", 5, -15)
-
+    frame.settingsButton:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 90, 15)
     frame.settingsButton:SetScript("OnClick", function()
         LibStub("AceConfigDialog-3.0"):Open(addonName)
+    end)
+
+    -- Debug button to view snapshots
+    frame.debugButton = CreateFrame("Button", addonName .. "DebugButton", frame, "UIPanelButtonTemplate")
+    frame.debugButton:SetText(L["View Snapshots"])
+    frame.debugButton:SetWidth(120)
+    frame.debugButton:SetHeight(20)
+    frame.debugButton:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -10, 15)
+    frame.debugButton:SetScript("OnClick", function()
+        addon:snapshotsViewerBuidler() -- Call the viewer builder function
     end)
 
     frame:SetScript("OnHide", function(f) -- f is the frame itself
@@ -278,15 +265,15 @@ function addon:UpdateXP()
     local newXPGained = currentXP - lastXP
 
     if newXPGained > 0 then
-        xpGained = xpGained + newXPGained -- xpGained is cumulative for the current level
+        -- xpGained = xpGained + newXPGained -- xpGained is cumulative for the current level
 
         -- Ensure snapshots table exists
         if not self.db.profile.xpSnapshots then
             self.db.profile.xpSnapshots = {}
         end
 
-        -- Add a new snapshot: {cumulative XP for this level, time played at this level when snapshot taken}
-        table.insert(self.db.profile.xpSnapshots, {xp = xpGained, time = timePlayedLevel})
+        -- Add a new snapshot: {cumulative XP for this level, session time when snapshot taken}
+        table.insert(self.db.profile.xpSnapshots, {xp = newXPGained, time = GetTime()})
         
         -- debug print for snapshots
         for i, snap in ipairs(self.db.profile.xpSnapshots) do
@@ -311,21 +298,20 @@ function addon:UpdateXP()
         local oldestSnapshot = self.db.profile.xpSnapshots[1]
         local latestSnapshot = self.db.profile.xpSnapshots[#self.db.profile.xpSnapshots]
 
-        -- calculating deltaXP as the avg of all snapshots
-        local deltaXP = 0
-        for i = 1, #self.db.profile.xpSnapshots - 1 do
-            deltaXP = deltaXP + self.db.profile.xpSnapshots[i].xp
+        local totalGainedXP = 0
+        for i = 1, #self.db.profile.xpSnapshots do
+            totalGainedXP = totalGainedXP + self.db.profile.xpSnapshots[i].xp
         end
-        deltaXP = deltaXP / (#self.db.profile.xpSnapshots - 1) -- Average change in XP per snapshot
         local deltaTime = latestSnapshot.time - oldestSnapshot.time
 
-        if deltaTime > 0 and deltaXP > 0 then
-            local xpPerHour = (deltaXP / deltaTime) * 3600
+        if deltaTime > 0 and totalGainedXP > 0 then
+            local xpPerHour = (totalGainedXP / deltaTime) * 3600
             -- xpNeeded is > 0 here because of the first if condition
             local timeToLevelSeconds = (xpNeeded / xpPerHour) * 3600 
             timeToLevel = self:FormatTime(timeToLevelSeconds)
         else
             timeToLevel = L["Calculating..."] -- Not enough change in XP/time or deltaTime was zero
+            print("totalGainedXP=" .. totalGainedXP .. ", deltatime=" .. deltaTime) -- Debug print
         end
     else
         timeToLevel = L["Calculating..."] -- Not enough snapshots to calculate rate
@@ -346,6 +332,7 @@ function addon:snapshotsReport()
     local title = string.format("XP Snapshots (%d of %d max shown):", #snapshots, maxSamples) -- TODO: Localize title string format "XP Snapshots"
     local lines = { title }
     
+    print(title) -- Debug print
     for i, snap in ipairs(snapshots) do
         table.insert(lines, string.format("  %d: XP %d, Time %s", i, snap.xp, self:FormatTime(snap.time)))
         print(string.format("Snapshot %d: {xp=%d, time=%0.f}", i, snap.xp, snap.time)) -- Debug print
@@ -354,43 +341,56 @@ function addon:snapshotsReport()
 end
 
 function addon:snapshotsViewerBuidler()
-    if not debugFrame then
-        debugFrame = CreateFrame("Frame", addonName .. "DebugFrame", UIParent, "BasicFrameTemplateWithInset")
-        debugFrame:SetWidth(300)
-        debugFrame:SetHeight(200)
-        debugFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
-        debugFrame:Hide() -- Start hidden
-
-        debugFrame.title = debugFrame:CreateFontString(addonName .. "DebugFrameTitle", "ARTWORK", "GameFontNormalLarge")
-        debugFrame.title:SetPoint("TOP", 0, -5)
-        debugFrame.title:SetText("XP Snapshots Viewer")
-
-        debugFrame.text = debugFrame:CreateFontString(addonName .. "DebugFrameText", "ARTWORK", "GameFontNormal")
-        debugFrame.text:SetPoint("TOPLEFT", 15, -30)
-        debugFrame.text:SetJustifyH("LEFT")
-        debugFrame.text:SetWidth(270) -- Set width to allow wrapping
-
-        -- Close button
-        local closeButton = CreateFrame("Button", addonName .. "DebugCloseButton", debugFrame, "UIPanelButtonTemplate")
-        closeButton:SetText("Close")
-        closeButton:SetWidth(80)
-        closeButton:SetHeight(20)
-        closeButton:SetPoint("BOTTOMRIGHT", -10, 10)
-
-        closeButton:SetScript("OnClick", function()
-            debugFrame:Hide()
-        end)
+    if debugFrame and debugFrame:IsShown() then
+        debugFrame:Hide() -- Hide if already shown
+        return
     end
+    debugFrame = CreateFrame("Frame", addonName .. "DebugFrame", UIParent, "BasicFrameTemplateWithInset")
+    debugFrame:SetWidth(300)
+    debugFrame:SetHeight(200)
+    debugFrame:SetPoint("CENTER", UIParent, "TOP", 0, -100)
+    debugFrame:Hide() -- Start hidden
+
+    debugFrame.title = debugFrame:CreateFontString(addonName .. "DebugFrameTitle", "ARTWORK", "GameFontNormalLarge")
+    debugFrame.title:SetPoint("TOP", 0, -5)
+    debugFrame.title:SetText("XP Snapshots Viewer")
+
+    debugFrame.text = debugFrame:CreateFontString(addonName .. "DebugFrameText", "ARTWORK", "GameFontNormal")
+    debugFrame.text:SetPoint("TOPLEFT", 15, -30)
+    debugFrame.text:SetJustifyH("LEFT")
+    debugFrame.text:SetWidth(270) -- Set width to allow wrapping
+
+    -- Close button
+    local closeButton = CreateFrame("Button", addonName .. "DebugCloseButton", debugFrame, "UIPanelButtonTemplate")
+    closeButton:SetText("Close")
+    closeButton:SetWidth(80)
+    closeButton:SetHeight(20)
+    closeButton:SetPoint("BOTTOMRIGHT", -10, 10)
+
+    closeButton:SetScript("OnClick", function()
+        debugFrame:Hide()
+    end)
 
     -- Update the text in the viewer
     local reportText = self:snapshotsReport()
     debugFrame.text:SetText(reportText)
 
+    -- Button to clear snapshots
+    local clearButton = CreateFrame("Button", addonName .. "DebugClearButton", debugFrame, "UIPanelButtonTemplate")
+    clearButton:SetText(L["Clear"])
+    clearButton:SetWidth(100)
+    clearButton:SetHeight(20)
+    clearButton:SetPoint("BOTTOMLEFT", 10, 10)
+    clearButton:SetScript("OnClick", function()
+        self.db.profile.xpSnapshots = {} -- Clear the snapshots
+        print(addonName .. ": " .. L["All XP snapshots cleared."]) -- TODO: Localize this message
+        self:UpdateFrameText() -- Update the main frame text
+        debugFrame.text:SetText(self:snapshotsReport()) -- Update the debug frame text
+    end)
+
     -- Show the frame
     debugFrame:Show()
 end
-
-
 
 -- Handle level up event
 function addon:LevelUp()
