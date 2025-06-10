@@ -3,7 +3,7 @@ local addonName, _ = ...
 local L = LibStub("AceLocale-3.0"):NewLocale(addonName, "enUS", true)
 if not L then return end
 
-L["Player Progression"] = "Player Progression"
+L["Progression"] = "Progression"
 L["Current XP"] = "Current XP"
 L["Rested XP"] = "Rested XP"
 L["Time Played (Total)"] = "Time Played (Total)"

@@ -154,7 +154,7 @@ function addon:CreateFrame()
 
     frame.title = frame:CreateFontString(addonName .. "FrameTitle", "ARTWORK", "GameFontNormalLarge")
     frame.title:SetPoint("TOP", 0, -5)
-    frame.title:SetText(L["Player Progression"])
+    frame.title:SetText(L["Progression"])
 
     frame.xpText = frame:CreateFontString(addonName .. "FrameXPText", "ARTWORK", "GameFontNormal")
     frame.xpText:SetPoint("TOPLEFT", 15, -30)
