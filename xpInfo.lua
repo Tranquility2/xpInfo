@@ -129,7 +129,7 @@ end
 function addon:CreateFrame()
     frame = CreateFrame("Frame", addonName .. "Frame", UIParent, "BasicFrameTemplateWithInset")
     frame:SetWidth(250)
-    frame:SetHeight(150) -- Initial height, will be adjusted by UpdateFrameText
+    frame:SetHeight(200) -- Initial height, will be adjusted by UpdateFrameText
     frame:SetPoint(unpack(self.db.profile.framePosition))
     frame:SetMovable(true)
     frame:EnableMouse(true)
@@ -160,8 +160,12 @@ function addon:CreateFrame()
     frame.xpText:SetPoint("TOPLEFT", 15, -30)
     frame.xpText:SetJustifyH("LEFT")
 
+    frame.remainingText = frame:CreateFontString(addonName .. "FrameRemainingXPText", "ARTWORK", "GameFontNormal")
+    frame.remainingText:SetPoint("TOPLEFT", frame.xpText, "BOTTOMLEFT", 0, -5)
+    frame.remainingText:SetJustifyH("LEFT")
+
     frame.timeText = frame:CreateFontString(addonName .. "FrameTimeText", "ARTWORK", "GameFontNormal")
-    frame.timeText:SetPoint("TOPLEFT", frame.xpText, "BOTTOMLEFT", 0, -5)
+    frame.timeText:SetPoint("TOPLEFT", frame.remainingText, "BOTTOMLEFT", 0, -5)
     frame.timeText:SetJustifyH("LEFT")
 
     -- Reposition Refresh button and add Settings button
@@ -223,18 +227,22 @@ function addon:UpdateFrameText()
     local timePlayedTotalString = self:FormatTime(timePlayedTotal)
     local timePlayedLevelString = self:FormatTime(timePlayedLevel)
 
-    local timeString = string.format(L["Time Played (Total)"] .. ": %s\n" .. L["Time Played (Level)"] .. ": %s\n" .. L["Time to Level"] .. ": %s",
-                                   timePlayedTotalString, timePlayedLevelString, timeToLevel)
+    local timeString = string.format(L["Time Played (Total)"] .. ": %s\n" .. L["Time Played (Level)"] .. ": %s\n",
+                                   timePlayedTotalString, timePlayedLevelString)
     frame.timeText:SetText(timeString)
+
+    remainingString = string.format(L["Time to Level"] .. ": %s", timeToLevel)
+    frame.remainingText:SetText(remainingString)
     
     local titleH = frame.title:GetStringHeight()
     local xpTextH = frame.xpText:GetStringHeight()
     local timeTextH = frame.timeText:GetStringHeight()
+    local remainingTextH = frame.remainingText:GetStringHeight() -- This is for future use if needed
     local buttonH = frame.refreshButton:GetHeight() -- This is 20 as set in CreateFrame
 
     -- The constant 50 here is an estimate for all vertical paddings combined
     -- (e.g., above title, between elements, below button)
-    frame:SetHeight(titleH + xpTextH + timeTextH + buttonH + 50)
+    frame:SetHeight(titleH + xpTextH + timeTextH + remainingTextH + buttonH + 50)
 end
 
 -- Handle chat commands
