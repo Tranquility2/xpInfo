@@ -98,8 +98,13 @@ function addon:CreateFrame()
     frame.remainingText:SetPoint("TOPLEFT", frame.xpText, "BOTTOMLEFT", 0, -5)
     frame.remainingText:SetJustifyH("LEFT")
 
+    -- ADDED: Mobs to level text
+    frame.mobsToLevelText = frame:CreateFontString(addonName .. "FrameMobsToLevelText", "ARTWORK", "GameFontNormal")
+    frame.mobsToLevelText:SetPoint("TOPLEFT", frame.remainingText, "BOTTOMLEFT", 0, -5)
+    frame.mobsToLevelText:SetJustifyH("LEFT")
+
     frame.timeText = frame:CreateFontString(addonName .. "FrameTimeText", "ARTWORK", "GameFontNormal")
-    frame.timeText:SetPoint("TOPLEFT", frame.remainingText, "BOTTOMLEFT", 0, -5)
+    frame.timeText:SetPoint("TOPLEFT", frame.mobsToLevelText, "BOTTOMLEFT", 0, -5) -- MODIFIED: Anchor to new mobsToLevelText
     frame.timeText:SetJustifyH("LEFT")
 
     -- Refresh button 
@@ -174,15 +179,46 @@ function addon:UpdateFrameText()
     remainingString = string.format(L["Time to Level"] .. ": %s", timeToLevel)
     frame.remainingText:SetText(remainingString)
     
+    -- ADDED: Calculate and set mobs to level text
+    local mobsToLevelString = L["Mobs to Level"] .. ": " .. L["Calculating..."] -- Default text
+    if self.db.profile.xpSnapshots and #self.db.profile.xpSnapshots > 0 then
+        local totalXpFromSnapshots = 0
+        local numValidSnapshots = 0
+        for _, snap in ipairs(self.db.profile.xpSnapshots) do
+            -- Assuming snap.xp stores the XP gained from a single event (newXPGained)
+            if snap.xp and snap.xp > 0 then
+                totalXpFromSnapshots = totalXpFromSnapshots + snap.xp
+                numValidSnapshots = numValidSnapshots + 1
+            end
+        end
+
+        if numValidSnapshots > 0 then
+            local avgXpPerEvent = totalXpFromSnapshots / numValidSnapshots
+            local currentXPValue = UnitXP("player") -- Renamed to avoid conflict with local currentXP in some scopes
+            local maxXPValue = UnitXPMax("player")   -- Renamed
+            local xpNeededToLevel = maxXPValue - currentXPValue
+
+            if xpNeededToLevel > 0 and avgXpPerEvent > 0 then
+                local mobsNeeded = math.ceil(xpNeededToLevel / avgXpPerEvent)
+                -- TODO: Add L["Mobs to Level: %d (avg %s XP)"] to locale.lua
+                mobsToLevelString = string.format(L["Mobs to Level: %d (avg %s XP)"], mobsNeeded, string.format("%.0f", avgXpPerEvent))
+            elseif xpNeededToLevel <= 0 then
+                mobsToLevelString = L["Mobs to Level"] .. ": " .. L["N/A"]
+            end
+        end
+    end
+    frame.mobsToLevelText:SetText(mobsToLevelString)
+    
     local titleH = frame.title:GetStringHeight()
     local xpTextH = frame.xpText:GetStringHeight()
     local timeTextH = frame.timeText:GetStringHeight()
-    local remainingTextH = frame.remainingText:GetStringHeight() -- This is for future use if needed
-    local buttonH = frame.refreshButton:GetHeight() -- This is 20 as set in CreateFrame
+    local remainingTextH = frame.remainingText:GetStringHeight()
+    local mobsToLevelTextH = frame.mobsToLevelText:GetStringHeight() -- ADDED: Get height of new text
+    local buttonH = frame.refreshButton:GetHeight()
 
     -- The constant 50 here is an estimate for all vertical paddings combined
     -- (e.g., above title, between elements, below button)
-    frame:SetHeight(titleH + xpTextH + timeTextH + remainingTextH + buttonH + 50)
+    frame:SetHeight(titleH + xpTextH + remainingTextH + mobsToLevelTextH + timeTextH + buttonH + 60) -- MODIFIED: Added mobsToLevelTextH and increased padding slightly
 end
 
 -- Handle chat commands
@@ -223,11 +259,7 @@ function addon:UpdateXP()
 
         -- Add a new snapshot: {cumulative XP for this level, session time when snapshot taken}
         table.insert(self.db.profile.xpSnapshots, {xp = newXPGained, time = GetTime()})
-        
-        -- debug print for snapshots
-        for i, snap in ipairs(self.db.profile.xpSnapshots) do
-            print(string.format("Snapshot %d: {xp=%d, time=%0.f}", i, snap.xp, snap.time))
-        end
+        addon:updateSnapshotsViewer()
 
         local maxSamples = self.db.profile.maxSamples 
         if not maxSamples or maxSamples < 2 or maxSamples > 10 then maxSamples = defaults.profile.maxSamples end 
@@ -281,12 +313,16 @@ function addon:snapshotsReport()
     local title = string.format("XP Snapshots (%d of %d max shown):", #snapshots, maxSamples) -- TODO: Localize title string format "XP Snapshots"
     local lines = { title }
     
-    print(title) -- Debug print
     for i, snap in ipairs(snapshots) do
         table.insert(lines, string.format("  %d: XP %d, Time %s", i, snap.xp, self:FormatTime(snap.time)))
-        print(string.format("Snapshot %d: {xp=%d, time=%0.f}", i, snap.xp, snap.time)) -- Debug print
     end
+    
     return table.concat(lines, "\n")
+end
+
+function addon:updateSnapshotsViewer()
+    local reportText = self:snapshotsReport()
+    debugFrame.text:SetText(reportText)
 end
 
 function addon:snapshotsViewerBuidler()
@@ -321,8 +357,7 @@ function addon:snapshotsViewerBuidler()
     end)
 
     -- Update the text in the viewer
-    local reportText = self:snapshotsReport()
-    debugFrame.text:SetText(reportText)
+    addon:updateSnapshotsViewer()
 
     -- Button to clear snapshots
     local clearButton = CreateFrame("Button", addonName .. "DebugClearButton", debugFrame, "UIPanelButtonTemplate")
@@ -334,7 +369,7 @@ function addon:snapshotsViewerBuidler()
         self.db.profile.xpSnapshots = {} -- Clear the snapshots
         print(addonName .. ": " .. L["All XP snapshots cleared."]) -- TODO: Localize this message
         self:UpdateFrameText() -- Update the main frame text
-        debugFrame.text:SetText(self:snapshotsReport()) -- Update the debug frame text
+        addon:updateSnapshotsViewer() -- Update the debug frame text
     end)
 
     -- Show the frame
