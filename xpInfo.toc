@@ -8,5 +8,7 @@
 ## X-Embeds: Ace3 # For other embedded Ace libraries like AceGUI, AceDB, etc.
 
 libs/embeds.xml
+
 locale.lua
+options.lua
 xpInfo.lua
