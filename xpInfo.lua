@@ -9,8 +9,8 @@ local defaults = {
     profile = {
         showFrame = true,
         framePosition = { "CENTER", UIParent, "CENTER", 0, 0 },
-        xpGainedSamples = {},
-        maxSamples = 5,       -- ADDED: Default number of XP samples to store (slider 1-10)
+        xpSnapshots = {},
+        maxSamples = 5,
     }
 }
 
@@ -21,28 +21,35 @@ local frame
 local timePlayedTotal = 0
 local timePlayedLevel = 0
 local lastXP = 0
-local xpGained = 0
+local xpGained = 0 -- Cumulative XP gained in the current level
 local timeToLevel = "Calculating..."
 
 -- Called when the addon is initialized
 function addon:OnInitialize()
     self.db = LibStub("AceDB-3.0"):New(addonName .. "DB", defaults, true)
+    -- Ensure xpSnapshots is initialized if loading old saved variables
+    if self.db.profile.xpGainedSamples and not self.db.profile.xpSnapshots then
+        self.db.profile.xpSnapshots = {} -- Or attempt migration if necessary
+        self.db.profile.xpGainedSamples = nil -- Remove old data
+    elseif not self.db.profile.xpSnapshots then
+        self.db.profile.xpSnapshots = {}
+    end
+
     self:RegisterChatCommand("xpi", "ChatCommand")
     self:RegisterEvent("PLAYER_XP_UPDATE", "UpdateXP")
     self:RegisterEvent("PLAYER_LEVEL_UP", "LevelUp")
     self:RegisterEvent("PLAYER_ENTERING_WORLD", "OnPlayerEnteringWorld")
     self:RegisterEvent("TIME_PLAYED_MSG", "OnTimePlayedMessage")
 
-    local addonRef = self -- Capture self for use in get/set functions
+    local addonRef = self
 
-    -- ADDED Options Panel Setup
     local profileSpecificOptions = {
         maxSamples = {
             type = "range",
             order = 1,
-            name = L["Max XP Samples"],
-            desc = L["Set the maximum number of recent XP gains to store."],
-            min = 1,
+            name = L["Max XP Snapshots"], -- CHANGED text
+            desc = L["Set the maximum number of recent XP snapshots to store for rate calculation."], -- CHANGED text
+            min = 2, -- Need at least 2 for a rate
             max = 10,
             step = 1,
             get = function(info)
@@ -50,12 +57,17 @@ function addon:OnInitialize()
             end,
             set = function(info, value)
                 addonRef.db.profile.maxSamples = value
-                addonRef:UpdateXP() -- Refresh XP data and potentially prune samples
+                -- Prune snapshots if new maxSamples is less than current number of snapshots
+                if addonRef.db.profile.xpSnapshots then
+                    while #addonRef.db.profile.xpSnapshots > addonRef.db.profile.maxSamples do
+                        table.remove(addonRef.db.profile.xpSnapshots, 1)
+                    end
+                end
+                addonRef:UpdateXP() 
             end,
         }
     }
 
-    -- ADDED Options Table that includes the maxSamples option
     local options = {
         type = "group",
         name = addonName,
@@ -84,17 +96,22 @@ function addon:OnInitialize()
         },
     }
 
-    -- print debug message on maxSamples change
     local function onMaxSamplesChanged()
-        print(addonName .. ": Max XP Samples changed to " .. addonRef.db.profile.maxSamples)
+        print(addonName .. ": Max XP Snapshots changed to " .. addonRef.db.profile.maxSamples)
     end
     options.args.maxSamplesOption.set = function(info, value)
         addonRef.db.profile.maxSamples = value
-        onMaxSamplesChanged() -- Call the debug message function
+        onMaxSamplesChanged()
+        -- Prune snapshots if new maxSamples is less than current number of snapshots
+        if addonRef.db.profile.xpSnapshots then
+            while #addonRef.db.profile.xpSnapshots > addonRef.db.profile.maxSamples do
+                table.remove(addonRef.db.profile.xpSnapshots, 1)
+            end
+        end
+        addonRef:UpdateXP()
     end
 
     LibStub("AceConfig-3.0"):RegisterOptionsTable(addonName, options)
-
     self:CreateFrame()
 end
 
@@ -194,11 +211,12 @@ function addon:UpdateFrameText()
         restedXPPerc = (restedXP / maxXP) * 100
     end
 
-    local xpString = string.format(L["Current XP"] .. ": %s / %s (%s%%)\n" .. L["Rested XP"] .. ": %s (%s%%)", 
+    local xpString = string.format(L["Current XP"] .. ": %s / %s (%s%%)\n" .. L["Rested XP"] .. ": %s / %s (%s%%)", 
                                    currentXP, 
                                    maxXP, 
                                    string.format("%.1f", currentXPPerc), 
                                    restedXP, 
+                                   maxXP,
                                    string.format("%.1f", restedXPPerc))
     frame.xpText:SetText(xpString)
 
@@ -246,39 +264,63 @@ end
 function addon:UpdateXP()
     local currentXP = UnitXP("player")
     local newXPGained = currentXP - lastXP
+
     if newXPGained > 0 then
-        xpGained = xpGained + newXPGained
+        xpGained = xpGained + newXPGained -- xpGained is cumulative for the current level
 
-        -- Store the sample of newXPGained
-        if not self.db.profile.xpGainedSamples then
-            self.db.profile.xpGainedSamples = {}
+        -- Ensure snapshots table exists
+        if not self.db.profile.xpSnapshots then
+            self.db.profile.xpSnapshots = {}
         end
-        table.insert(self.db.profile.xpGainedSamples, newXPGained)
-        --deubg print the list of xpGainedSamples
-        print(addonName .. ": New XP Gained Sample: " .. newXPGained)
-        
-        local maxSamples = self.db.profile.maxSamples 
-        -- Fallback if the value is somehow not set (AceDB defaults should prevent this)
-        if not maxSamples or maxSamples < 1 or maxSamples > 10 then maxSamples = defaults.profile.maxSamples end 
 
-        while #self.db.profile.xpGainedSamples > maxSamples do
-            table.remove(self.db.profile.xpGainedSamples, 1) -- Remove the oldest
+        -- Add a new snapshot: {cumulative XP for this level, time played at this level when snapshot taken}
+        table.insert(self.db.profile.xpSnapshots, {xp = xpGained, time = timePlayedLevel})
+        
+        -- debug print for snapshots
+        for i, snap in ipairs(self.db.profile.xpSnapshots) do
+            print(string.format("Snapshot %d: {xp=%d, time=%0.f}", i, snap.xp, snap.time))
+        end
+
+        local maxSamples = self.db.profile.maxSamples 
+        if not maxSamples or maxSamples < 2 or maxSamples > 10 then maxSamples = defaults.profile.maxSamples end 
+        if maxSamples < 2 then maxSamples = 2 end -- Ensure min 2 for rate calc
+
+        while #self.db.profile.xpSnapshots > maxSamples do
+            table.remove(self.db.profile.xpSnapshots, 1) -- Remove the oldest snapshot
         end
     end
     lastXP = currentXP
 
-    if xpGained > 0 and timePlayedLevel > 0 then
-        local xpPerHour = (xpGained / timePlayedLevel) * 3600
-        local xpNeeded = UnitXPMax("player") - currentXP
-        if xpNeeded > 0 and xpPerHour > 0 then
-            local timeToLevelSeconds = xpNeeded / xpPerHour * 3600 -- Corrected calculation
+    local xpNeeded = UnitXPMax("player") - currentXP
+
+    if xpNeeded <= 0 and UnitXPMax("player") > 0 then 
+        timeToLevel = L["N/A"]
+    elseif self.db.profile.xpSnapshots and #self.db.profile.xpSnapshots >= 2 then
+        local oldestSnapshot = self.db.profile.xpSnapshots[1]
+        local latestSnapshot = self.db.profile.xpSnapshots[#self.db.profile.xpSnapshots]
+
+        -- calculating deltaXP as the avg of all snapshots
+        local deltaXP = 0
+        for i = 1, #self.db.profile.xpSnapshots - 1 do
+            deltaXP = deltaXP + self.db.profile.xpSnapshots[i].xp
+        end
+        deltaXP = deltaXP / (#self.db.profile.xpSnapshots - 1) -- Average change in XP per snapshot
+        print("Delta XP: " .. deltaXP) -- Debug print to see if we have valid deltas
+        local deltaTime = latestSnapshot.time - oldestSnapshot.time
+
+        if deltaTime > 0 and deltaXP > 0 then
+            local xpPerHour = (deltaXP / deltaTime) * 3600
+            -- xpNeeded is > 0 here because of the first if condition
+            local timeToLevelSeconds = (xpNeeded / xpPerHour) * 3600 
             timeToLevel = self:FormatTime(timeToLevelSeconds)
         else
-            timeToLevel = L["N/A"]
+            timeToLevel = L["Calculating..."] -- Not enough change in XP/time or deltaTime was zero
+            print(latestSnapshot.xp, oldestSnapshot.xp) -- Debug print to see if we have valid deltas
         end
     else
-        timeToLevel = L["Calculating..."]
+        timeToLevel = L["Calculating..."] -- Not enough snapshots to calculate rate
     end
+    
     self:UpdateFrameText()
 end
 
@@ -286,12 +328,28 @@ end
 -- Handle level up event
 function addon:LevelUp()
     timePlayedLevel = 0 -- RESET for the new level
-    xpGained = 0
+    xpGained = 0        -- Reset cumulative XP for the new level
+    if self.db.profile then 
+        self.db.profile.xpSnapshots = {} -- Clear snapshots for the new level
+    end
     timeToLevel = L["Calculating..."]
     lastXP = UnitXP("player") -- Reset lastXP for the new level
     RequestTimePlayed() -- Request new time played data after level up
-    self:UpdateFrameText()
+
     print(addonName .. ": " .. L["Congratulations on leveling up!"])
+
+    -- Store the time and level in the database if needed under a levelSnapshots table
+    if not self.db.profile.levelSnapshots then
+        self.db.profile.levelSnapshots = {}
+    end
+    table.insert(self.db.profile.levelSnapshots, {level = UnitLevel("player"), time = timePlayedTotal})
+
+    -- Debug print for level snapshots
+    for i, snap in ipairs(self.db.profile.levelSnapshots) do
+        print(string.format("Level Snapshot %d: {level=%d, time=%0.f}", i, snap.level, snap.time))
+    end
+
+    self:UpdateFrameText() -- Update the frame text after level up
 end
 
 -- Handler for PLAYER_ENTERING_WORLD
