@@ -16,7 +16,6 @@ local defaults = {
 
 -- Frame
 local frame
-local debugFrame
 
 -- Time tracking
 local timePlayedTotal = 0
@@ -54,6 +53,8 @@ function addon:OnInitialize()
     
     -- Initialize chat commands from cli.lua
     addonTable.InitializeChatCommands(self)
+    -- Initialize snapshot functions from snapshots.lua
+    addonTable.InitializeSnapshots(self)
 end
 
 -- Called when the addon is enabled
@@ -141,7 +142,7 @@ function addon:CreateFrame()
     frame.debugButton:SetHeight(20)
     frame.debugButton:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -10, 15)
     frame.debugButton:SetScript("OnClick", function()
-        addon:snapshotsViewerBuidler() -- Call the viewer builder function
+        self:snapshotsViewerBuidler()
     end)
 
     frame:SetScript("OnHide", function(f) -- f is the frame itself
@@ -243,7 +244,7 @@ function addon:UpdateXP()
 
         -- Add a new snapshot: {cumulative XP for this level, session time when snapshot taken}
         table.insert(self.db.profile.xpSnapshots, {xp = newXPGained, time = GetTime()})
-        addon:updateSnapshotsViewer()
+        self:updateSnapshotsViewer()
 
         -- for i, snap in ipairs(self.db.profile.xpSnapshots) do
         --     print(string.format("Snapshot %d: {xp=%d, time=%0.f}", i, snap.xp, snap.time)) -- Debug print
@@ -287,116 +288,6 @@ function addon:UpdateXP()
     end
     
     self:UpdateFrameText()
-end
-
--- Function to build the snapshots report text
-function addon:snapshotsReport()
-    local snapshots = self.db.profile.xpSnapshots
-    local maxSamples = self.db.profile.maxSamples
-    local levelSnapshots = self.db.profile.levelSnapshots
-
-    -- for i, snap in ipairs(snapshots) do
-    --     print(string.format("Snapshot %d: {xp=%d, time=%0.f}", i, snap.xp, snap.time)) -- Debug print
-    -- end
-
-    local lines = {}
-    local title = ""
-    
-    if not snapshots or #snapshots == 0 then
-        lines = { L["No XP snapshots currently recorded."] }
-    else
-        title = string.format(L["XP Snapshots (%d of %d max)"], #snapshots, maxSamples)
-        lines = { title }
-        
-        for i, snap in ipairs(snapshots) do
-            table.insert(lines, string.format("  %d: " .. L["XP"] .. " %d, " .. L["Time"] .. " %s", i, snap.xp, snap.time))
-        end
-    end
-
-    lines[#lines + 1] = "" -- Add a blank line before level snapshots
-
-    if not levelSnapshots or #levelSnapshots == 0 then
-        lines[#lines + 1] = L["No level snapshots recorded."]
-    else
-        title = L["XP Snapshots for Levels"]
-        lines[#lines + 1] = title .. " (" .. #levelSnapshots .. " recorded):"
-        for i, snap in ipairs(levelSnapshots) do
-            table.insert(lines, string.format("  %d: {level=%d, time=%0.f}", i, snap.level, snap.time))
-        end
-    end
-
-    return table.concat(lines, "\n")
-end
-
-
-function addon:updateSnapshotsViewer()
-    if debugFrame and debugFrame.text then -- Check if debugFrame and its text element exist
-        local reportText = self:snapshotsReport()
-        debugFrame.text:SetText(reportText)
-    end
-end
-
--- Function to create the debug frame and its elements if they don't exist
-function addon:ensureDebugFrameCreated()
-    if not debugFrame then
-        debugFrame = CreateFrame("Frame", addonName .. "DebugFrame", UIParent, "BasicFrameTemplateWithInset")
-        debugFrame:SetWidth(350)
-        debugFrame:SetHeight(250)
-        debugFrame:SetPoint("CENTER", UIParent, "TOP", 0, -150) -- Adjusted position
-        debugFrame:SetMovable(true)
-        debugFrame:EnableMouse(true)
-        debugFrame:RegisterForDrag("LeftButton")
-        debugFrame:SetScript("OnDragStart", debugFrame.StartMoving)
-        debugFrame:SetScript("OnDragStop", function(f)
-            f:StopMovingOrSizing()
-            -- Optionally save debugFrame position if desired, similar to main frame
-        end)
-
-        debugFrame.title = debugFrame:CreateFontString(addonName .. "DebugFrameTitle", "ARTWORK", "GameFontNormalLarge")
-        debugFrame.title:SetPoint("TOP", 0, -5)
-        debugFrame.title:SetText(L["Snapshots Viewer"]) -- LOCALIZED
-
-        debugFrame.text = debugFrame:CreateFontString(addonName .. "DebugFrameText", "ARTWORK", "GameFontNormal")
-        debugFrame.text:SetPoint("TOPLEFT", 15, -30)
-        debugFrame.text:SetJustifyH("LEFT")
-        debugFrame.text:SetWidth(debugFrame:GetWidth() - 30) -- Adjust width based on frame
-
-        -- Close button
-        local closeButton = CreateFrame("Button", addonName .. "DebugCloseButton", debugFrame, "UIPanelButtonTemplate")
-        closeButton:SetText(L["Close"]) -- LOCALIZED
-        closeButton:SetWidth(80)
-        closeButton:SetHeight(20)
-        closeButton:SetPoint("BOTTOMRIGHT", -10, 10)
-        closeButton:SetScript("OnClick", function()
-            debugFrame:Hide()
-        end)
-
-        -- Button to clear snapshots
-        local clearButton = CreateFrame("Button", addonName .. "DebugClearButton", debugFrame, "UIPanelButtonTemplate")
-        clearButton:SetText(L["Clear"]) -- Already localized, good
-        clearButton:SetWidth(100)
-        clearButton:SetHeight(20)
-        clearButton:SetPoint("BOTTOMLEFT", 10, 10)
-        clearButton:SetScript("OnClick", function()
-            self.db.profile.xpSnapshots = {} -- Clear the snapshots
-            print(addonName .. ": " .. L["All XP snapshots cleared."]) -- LOCALIZED
-            self:UpdateFrameText() -- Update the main frame text
-            self:updateSnapshotsViewer() -- Update the debug frame text
-        end)
-        debugFrame:Hide() -- Start hidden after creation
-    end
-end
-
-function addon:snapshotsViewerBuidler()
-    self:ensureDebugFrameCreated() -- Create the frame if it doesn't exist
-
-    if debugFrame:IsShown() then
-        debugFrame:Hide()
-    else
-        self:updateSnapshotsViewer() -- Update content before showing
-        debugFrame:Show()
-        debugFrame:Raise() -- Bring to front
-    end
 end
 
 -- Handle level up event
