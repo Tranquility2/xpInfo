@@ -63,6 +63,8 @@ function addon:OnInitialize()
     addonTable.InitializeSnapshots(self)
     -- Initialize minimap icon from minimap.lua
     addonTable.InitializeMinimapIcon(self)
+    -- Make UpdateMinimapIconVisibility available on the addon instance
+    self.UpdateMinimapIconVisibility = addonTable.UpdateMinimapIconVisibility
 end
 
 -- Called when the addon is enabled
@@ -73,6 +75,8 @@ function addon:OnEnable()
     lastXP = UnitXP("player") -- Initialize lastXP
     RequestTimePlayed() -- Request initial time played data
     self:UpdateXP()
+    -- Update minimap icon visibility on enable
+    self:UpdateMinimapIconVisibility(self)
 end
 
 function addonTable:GetDB()

@@ -24,3 +24,14 @@ function addonTable.InitializeMinimapIcon(addonInstance)
     
     icon:Register(addonName, addonInstance.minimapIcon, addonInstance.db.profile.minimap)
 end
+
+-- Function to update the minimap icon's visibility
+function addonTable.UpdateMinimapIconVisibility(addonInstance)
+    local shouldShow = addonInstance.db.profile.showMinimapIcon
+    print(addonName .. " UpdateMinimapIconVisibility called. Should show: " .. tostring(shouldShow))
+    if shouldShow then
+        icon:Show(addonName)
+    else
+        icon:Hide(addonName)
+    end
+end

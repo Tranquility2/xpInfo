@@ -39,8 +39,8 @@ function addonTable.InitializeOptions(addonInstance)
                 get = function() return db.profile.showMinimapIcon end,
                 set = function(_, value)
                     db.profile.showMinimapIcon = value
-                    -- Send a message so other parts of the addon can react if necessary
-                    addonInstance:SendMessage("XPINFO_PROFILE_UPDATED")
+                    -- Directly call the function on addonInstance to update minimap icon visibility
+                    addonInstance:UpdateMinimapIconVisibility(addonInstance)
                 end,
             },
             maxSamples = {
