@@ -7,7 +7,7 @@ function addonTable.InitializeMinimapIcon(addonInstance)
     addonInstance.minimapIcon = LibStub("LibDataBroker-1.1"):NewDataObject(addonName, {
         type = "data source",
         text = addonName,
-        icon = "Interface\\Icons\\INV_Misc_QuestionMark",
+        icon = "Interface\\Icons\\Xp_icon",
         OnClick = function(_, button)
             if button == "LeftButton" then
                 addonInstance:ToggleUI()
