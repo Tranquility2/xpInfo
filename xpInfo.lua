@@ -28,6 +28,7 @@ local timeToLevel = "Calculating..."
 -- Called when the addon is initialized
 function addon:OnInitialize()
     self.db = LibStub("AceDB-3.0"):New(addonName .. "DB", defaults) -- MODIFIED: Use character-specific profiles
+    self.defaults = defaults -- Store defaults on the addon instance for cli.lua
     -- Ensure xpSnapshots is initialized if loading old saved variables
     if self.db.profile.xpGainedSamples and not self.db.profile.xpSnapshots then
         self.db.profile.xpSnapshots = {} -- Or attempt migration if necessary
@@ -49,6 +50,9 @@ function addon:OnInitialize()
     -- Now that self.frame is initialized by CreateFrame(), pass self to initOptions
     local options = initOptions(self) 
     LibStub("AceConfig-3.0"):RegisterOptionsTable(addonName, options)
+
+    -- Initialize chat commands from cli.lua
+    addonTable.InitializeChatCommands(self)
 end
 
 -- Called when the addon is enabled
@@ -221,29 +225,6 @@ function addon:UpdateFrameText()
     -- The constant 50 here is an estimate for all vertical paddings combined
     -- (e.g., above title, between elements, below button)
     frame:SetHeight(titleH + xpTextH + remainingTextH + mobsToLevelTextH + timeTextH + buttonH + 60) -- MODIFIED: Added mobsToLevelTextH and increased padding slightly
-end
-
--- Handle chat commands
-function addon:ChatCommand(input)
-    if input == "show" then
-        frame:Show()
-        self.db.profile.showFrame = true
-    elseif input == "hide" then
-        frame:Hide()
-        self.db.profile.showFrame = false
-    elseif input == "reset" then
-        -- Reset frame position or other settings if needed
-        self.db.profile.framePosition = defaults.profile.framePosition
-        -- Also reset maxSamples to default if desired, or handle via a full profile reset option later
-        -- self.db.profile.maxSamples = defaults.profile.maxSamples 
-        frame:ClearAllPoints()
-        frame:SetPoint(unpack(self.db.profile.framePosition))
-        print(addonName .. ": " .. L["Frame position reset."])
-    elseif input == "config" then -- ADDED command to open config
-        LibStub("AceConfigDialog-3.0"):Open(addonName)
-    else
-        print(addonName .. ": " .. L["Usage: /xpi [show|hide|reset|config]"]) -- MODIFIED usage text
-    end
 end
 
 -- Update XP and calculate time to level

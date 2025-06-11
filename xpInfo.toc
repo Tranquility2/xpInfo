@@ -11,4 +11,5 @@ libs/embeds.xml
 
 locale.lua
 options.lua
+cli.lua
 xpInfo.lua
