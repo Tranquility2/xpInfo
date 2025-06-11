@@ -12,4 +12,6 @@ libs/embeds.xml
 locale.lua
 options.lua
 cli.lua
+snapshots.lua
+minimap.lua
 xpInfo.lua

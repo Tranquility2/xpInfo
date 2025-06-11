@@ -11,6 +11,8 @@ local defaults = {
         framePosition = { "CENTER", UIParent, "CENTER", 0, 0 },
         xpSnapshots = {},
         maxSamples = 5,
+        showMinimapIcon = true, -- ADDED: Default for minimap icon
+        levelSnapshots = {} -- Ensure this is part of defaults if not already
     }
 }
 
@@ -26,14 +28,18 @@ local timeToLevel = "Calculating..."
 
 -- Called when the addon is initialized
 function addon:OnInitialize()
-    self.db = LibStub("AceDB-3.0"):New(addonName .. "DB", defaults) -- MODIFIED: Use character-specific profiles
-    self.defaults = defaults -- Store defaults on the addon instance for cli.lua
+    self.db = LibStub("AceDB-3.0"):New(addonName .. "DB", defaults, "profile") 
+    self.defaults = defaults 
     -- Ensure xpSnapshots is initialized if loading old saved variables
     if self.db.profile.xpGainedSamples and not self.db.profile.xpSnapshots then
         self.db.profile.xpSnapshots = {} -- Or attempt migration if necessary
         self.db.profile.xpGainedSamples = nil -- Remove old data
     elseif not self.db.profile.xpSnapshots then
         self.db.profile.xpSnapshots = {}
+    end
+    -- ADDED: Ensure levelSnapshots exists in the profile
+    if not self.db.profile.levelSnapshots then
+        self.db.profile.levelSnapshots = {}
     end
 
     self:RegisterChatCommand("xpi", "ChatCommand")
@@ -55,6 +61,8 @@ function addon:OnInitialize()
     addonTable.InitializeChatCommands(self)
     -- Initialize snapshot functions from snapshots.lua
     addonTable.InitializeSnapshots(self)
+    -- Initialize minimap icon from minimap.lua
+    addonTable.InitializeMinimapIcon(self)
 end
 
 -- Called when the addon is enabled
@@ -64,7 +72,8 @@ function addon:OnEnable()
     end
     lastXP = UnitXP("player") -- Initialize lastXP
     RequestTimePlayed() -- Request initial time played data
-    self:UpdateXP() 
+    self:UpdateXP()
+    addonTable:UpdateMinimapIconVisibility()
 end
 
 -- Create the UI frame

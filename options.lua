@@ -31,6 +31,22 @@ function addonTable.InitializeOptions(addonInstance)
                     end
                 end,
             },
+            showMinimapIcon = {
+                type = "toggle",
+                order = 25, -- Place it after Show Frame
+                name = L["Show Minimap Icon"],
+                desc = L["Toggle the visibility of the minimap icon."],
+                get = function() return db.profile.showMinimapIcon end,
+                set = function(_, value)
+                    db.profile.showMinimapIcon = value
+                    -- Call the update function from minimap.lua
+                    if addonTable.UpdateMinimapIconVisibility then
+                        addonTable:UpdateMinimapIconVisibility()
+                    end
+                    -- Send a message so other parts of the addon can react if necessary
+                    addonInstance:SendMessage("XPINFO_PROFILE_UPDATED")
+                end,
+            },
             maxSamples = {
                 type = "range",
                 order = 30, 

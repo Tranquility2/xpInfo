@@ -48,3 +48,11 @@ L["XP Snapshots for Levels"] = "XP Snapshots for Levels"
 L["Reset Data"] = "Reset Data"
 L["Reset the database and clear all stored data."] = "Reset the database and clear all stored data."
 L["Database reset."] = "Database reset."
+
+-- Minimap Icon
+L["Minimap Icon"] = "Minimap Icon"
+L["Show Minimap Icon"] = "Show Minimap Icon"
+L["Toggle the visibility of the minimap icon."] = "Toggle the visibility of the minimap icon."
+L["xpInfo - Click to toggle frame, Alt-Click to open settings."] = "xpInfo - Click to toggle frame, Alt-Click to open settings."
+L["Frame is currently visible."] = "Frame is currently visible."
+L["Frame is currently hidden."] = "Frame is currently hidden."
