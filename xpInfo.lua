@@ -17,7 +17,7 @@ local defaults = {
 }
 
 -- Frame
-local frame
+local statsFrame
 
 -- Time tracking
 local timePlayedTotal = 0
@@ -52,7 +52,7 @@ function addon:OnInitialize()
     self.L = L
     -- Create frame first so it's available to options and other modules
     self:CreateFrame()
-    self.frame = frame -- Ensure self.frame is set for other modules
+    self.frame = statsFrame -- Ensure self.frame is set for other modules
 
     -- Initialize options from options.lua
     addonTable.InitializeOptions(self)
@@ -69,8 +69,8 @@ end
 
 -- Called when the addon is enabled
 function addon:OnEnable()
-    if self.db.profile.showFrame and frame then -- Ensure frame exists
-        frame:Show()
+    if self.db.profile.showFrame and statsFrame then -- Ensure frame exists
+        statsFrame:Show()
     end
     lastXP = UnitXP("player") -- Initialize lastXP
     RequestTimePlayed() -- Request initial time played data
@@ -84,33 +84,33 @@ function addonTable:GetDB()
 end
 
 function addon:ToggleUI()
-    if frame then
-        if frame:IsShown() then
-            frame:Hide()
+    if statsFrame then
+        if statsFrame:IsShown() then
+            statsFrame:Hide()
             self.db.profile.showFrame = false
         else
-            frame:Show()
+            statsFrame:Show()
             self.db.profile.showFrame = true
             self:UpdateFrameText() -- Ensure text is updated when showing
         end
     else
         self:CreateFrame() -- Create the frame if it doesn't exist
-        frame:Show()
+        statsFrame:Show()
         self.db.profile.showFrame = true
     end
 end
 
 -- Create the UI frame
 function addon:CreateFrame()
-    frame = CreateFrame("Frame", addonName .. "Frame", UIParent, "BasicFrameTemplateWithInset")
-    frame:SetWidth(300)
-    frame:SetHeight(200) -- Initial height, will be adjusted by UpdateFrameText
-    frame:SetPoint(unpack(self.db.profile.framePosition))
-    frame:SetMovable(true)
-    frame:EnableMouse(true)
-    frame:RegisterForDrag("LeftButton")
-    frame:SetScript("OnDragStart", frame.StartMoving)
-    frame:SetScript("OnDragStop", function(f) 
+    statsFrame = CreateFrame("Frame", addonName .. "Frame", UIParent, "BasicFrameTemplateWithInset")
+    statsFrame:SetWidth(300)
+    statsFrame:SetHeight(200) -- Initial height, will be adjusted by UpdateFrameText
+    statsFrame:SetPoint(unpack(self.db.profile.framePosition))
+    statsFrame:SetMovable(true)
+    statsFrame:EnableMouse(true)
+    statsFrame:RegisterForDrag("LeftButton")
+    statsFrame:SetScript("OnDragStart", statsFrame.StartMoving)
+    statsFrame:SetScript("OnDragStop", function(f) 
         f:StopMovingOrSizing()
 
         local xOffset = f:GetLeft()
@@ -123,62 +123,62 @@ function addon:CreateFrame()
         
         addon:UpdateFrameText() 
     end)
-    frame:SetScript("OnMouseDown", function(f, button)
+    statsFrame:SetScript("OnMouseDown", function(f, button)
         self:UpdateFrameText() 
     end)
 
-    frame.title = frame:CreateFontString(addonName .. "FrameTitle", "ARTWORK", "GameFontNormalLarge")
-    frame.title:SetPoint("TOP", 0, -5)
-    frame.title:SetText(L["Progression"])
+    statsFrame.title = statsFrame:CreateFontString(addonName .. "FrameTitle", "ARTWORK", "GameFontNormalLarge")
+    statsFrame.title:SetPoint("TOP", 0, -5)
+    statsFrame.title:SetText(L["Progression"])
 
-    frame.xpText = frame:CreateFontString(addonName .. "FrameXPText", "ARTWORK", "GameFontNormal")
-    frame.xpText:SetPoint("TOPLEFT", 15, -30)
-    frame.xpText:SetJustifyH("LEFT")
+    statsFrame.xpText = statsFrame:CreateFontString(addonName .. "FrameXPText", "ARTWORK", "GameFontNormal")
+    statsFrame.xpText:SetPoint("TOPLEFT", 15, -30)
+    statsFrame.xpText:SetJustifyH("LEFT")
 
-    frame.remainingText = frame:CreateFontString(addonName .. "FrameRemainingXPText", "ARTWORK", "GameFontNormal")
-    frame.remainingText:SetPoint("TOPLEFT", frame.xpText, "BOTTOMLEFT", 0, -5)
-    frame.remainingText:SetJustifyH("LEFT")
+    statsFrame.remainingText = statsFrame:CreateFontString(addonName .. "FrameRemainingXPText", "ARTWORK", "GameFontNormal")
+    statsFrame.remainingText:SetPoint("TOPLEFT", statsFrame.xpText, "BOTTOMLEFT", 0, -5)
+    statsFrame.remainingText:SetJustifyH("LEFT")
 
     -- ADDED: Mobs to level text
-    frame.mobsToLevelText = frame:CreateFontString(addonName .. "FrameMobsToLevelText", "ARTWORK", "GameFontNormal")
-    frame.mobsToLevelText:SetPoint("TOPLEFT", frame.remainingText, "BOTTOMLEFT", 0, -5)
-    frame.mobsToLevelText:SetJustifyH("LEFT")
+    statsFrame.mobsToLevelText = statsFrame:CreateFontString(addonName .. "FrameMobsToLevelText", "ARTWORK", "GameFontNormal")
+    statsFrame.mobsToLevelText:SetPoint("TOPLEFT", statsFrame.remainingText, "BOTTOMLEFT", 0, -5)
+    statsFrame.mobsToLevelText:SetJustifyH("LEFT")
 
-    frame.timeText = frame:CreateFontString(addonName .. "FrameTimeText", "ARTWORK", "GameFontNormal")
-    frame.timeText:SetPoint("TOPLEFT", frame.mobsToLevelText, "BOTTOMLEFT", 0, -5) -- MODIFIED: Anchor to new mobsToLevelText
-    frame.timeText:SetJustifyH("LEFT")
+    statsFrame.timeText = statsFrame:CreateFontString(addonName .. "FrameTimeText", "ARTWORK", "GameFontNormal")
+    statsFrame.timeText:SetPoint("TOPLEFT", statsFrame.mobsToLevelText, "BOTTOMLEFT", 0, -5) -- MODIFIED: Anchor to new mobsToLevelText
+    statsFrame.timeText:SetJustifyH("LEFT")
 
     -- Refresh button 
-    frame.refreshButton = CreateFrame("Button", addonName .. "RefreshButton", frame, "UIPanelButtonTemplate")
-    frame.refreshButton:SetText(L["Refresh"])
-    frame.refreshButton:SetWidth(80)
-    frame.refreshButton:SetHeight(20)
-    frame.refreshButton:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 10, 15)
-    frame.refreshButton:SetScript("OnClick", function()
+    statsFrame.refreshButton = CreateFrame("Button", addonName .. "RefreshButton", statsFrame, "UIPanelButtonTemplate")
+    statsFrame.refreshButton:SetText(L["Refresh"])
+    statsFrame.refreshButton:SetWidth(80)
+    statsFrame.refreshButton:SetHeight(20)
+    statsFrame.refreshButton:SetPoint("BOTTOMLEFT", statsFrame, "BOTTOMLEFT", 10, 15)
+    statsFrame.refreshButton:SetScript("OnClick", function()
         RequestTimePlayed()
     end)
 
     -- Settings button
-    frame.settingsButton = CreateFrame("Button", addonName .. "SettingsButton", frame, "UIPanelButtonTemplate")
-    frame.settingsButton:SetText(L["Settings"])
-    frame.settingsButton:SetWidth(80)
-    frame.settingsButton:SetHeight(20)
-    frame.settingsButton:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 90, 15)
-    frame.settingsButton:SetScript("OnClick", function()
+    statsFrame.settingsButton = CreateFrame("Button", addonName .. "SettingsButton", statsFrame, "UIPanelButtonTemplate")
+    statsFrame.settingsButton:SetText(L["Settings"])
+    statsFrame.settingsButton:SetWidth(80)
+    statsFrame.settingsButton:SetHeight(20)
+    statsFrame.settingsButton:SetPoint("BOTTOMLEFT", statsFrame, "BOTTOMLEFT", 90, 15)
+    statsFrame.settingsButton:SetScript("OnClick", function()
         LibStub("AceConfigDialog-3.0"):Open(addonName)
     end)
 
     -- Debug button to view snapshots
-    frame.debugButton = CreateFrame("Button", addonName .. "DebugButton", frame, "UIPanelButtonTemplate")
-    frame.debugButton:SetText(L["View Snapshots"])
-    frame.debugButton:SetWidth(120)
-    frame.debugButton:SetHeight(20)
-    frame.debugButton:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -10, 15)
-    frame.debugButton:SetScript("OnClick", function()
+    statsFrame.debugButton = CreateFrame("Button", addonName .. "DebugButton", statsFrame, "UIPanelButtonTemplate")
+    statsFrame.debugButton:SetText(L["View Snapshots"])
+    statsFrame.debugButton:SetWidth(120)
+    statsFrame.debugButton:SetHeight(20)
+    statsFrame.debugButton:SetPoint("BOTTOMRIGHT", statsFrame, "BOTTOMRIGHT", -10, 15)
+    statsFrame.debugButton:SetScript("OnClick", function()
         self:snapshotsViewerBuidler()
     end)
 
-    frame:SetScript("OnHide", function(f) -- f is the frame itself
+    statsFrame:SetScript("OnHide", function(f) -- f is the frame itself
         addon.db.profile.showFrame = false
     end)
 
@@ -187,7 +187,7 @@ end
 
 -- Update the text on the frame
 function addon:UpdateFrameText()
-    if not frame or not frame:IsShown() then return end
+    if not statsFrame or not statsFrame:IsShown() then return end
 
     local currentXP = UnitXP("player")
     local maxXP = UnitXPMax("player")
@@ -208,17 +208,17 @@ function addon:UpdateFrameText()
                                    restedXP, 
                                    maxXP,
                                    string.format("%.1f", restedXPPerc))
-    frame.xpText:SetText(xpString)
+    statsFrame.xpText:SetText(xpString)
 
     local timePlayedTotalString = self:FormatTime(timePlayedTotal)
     local timePlayedLevelString = self:FormatTime(timePlayedLevel)
 
     local timeString = string.format(L["Time Played (Total)"] .. ": %s\n" .. L["Time Played (Level)"] .. ": %s\n",
                                    timePlayedTotalString, timePlayedLevelString)
-    frame.timeText:SetText(timeString)
+    statsFrame.timeText:SetText(timeString)
 
     remainingString = string.format(L["Time to Level"] .. ": %s", timeToLevel)
-    frame.remainingText:SetText(remainingString)
+    statsFrame.remainingText:SetText(remainingString)
     
     -- ADDED: Calculate and set mobs to level text
     local mobsToLevelString = L["Mobs to Level"] .. ": " .. L["Calculating..."] -- Default text
@@ -248,18 +248,18 @@ function addon:UpdateFrameText()
             end
         end
     end
-    frame.mobsToLevelText:SetText(mobsToLevelString)
+    statsFrame.mobsToLevelText:SetText(mobsToLevelString)
     
-    local titleH = frame.title:GetStringHeight()
-    local xpTextH = frame.xpText:GetStringHeight()
-    local timeTextH = frame.timeText:GetStringHeight()
-    local remainingTextH = frame.remainingText:GetStringHeight()
-    local mobsToLevelTextH = frame.mobsToLevelText:GetStringHeight() -- ADDED: Get height of new text
-    local buttonH = frame.refreshButton:GetHeight()
+    local titleH = statsFrame.title:GetStringHeight()
+    local xpTextH = statsFrame.xpText:GetStringHeight()
+    local timeTextH = statsFrame.timeText:GetStringHeight()
+    local remainingTextH = statsFrame.remainingText:GetStringHeight()
+    local mobsToLevelTextH = statsFrame.mobsToLevelText:GetStringHeight() -- ADDED: Get height of new text
+    local buttonH = statsFrame.refreshButton:GetHeight()
 
     -- The constant 50 here is an estimate for all vertical paddings combined
     -- (e.g., above title, between elements, below button)
-    frame:SetHeight(titleH + xpTextH + remainingTextH + mobsToLevelTextH + timeTextH + buttonH + 60) -- MODIFIED: Added mobsToLevelTextH and increased padding slightly
+    statsFrame:SetHeight(titleH + xpTextH + remainingTextH + mobsToLevelTextH + timeTextH + buttonH + 60) -- MODIFIED: Added mobsToLevelTextH and increased padding slightly
 end
 
 -- Update XP and calculate time to level
