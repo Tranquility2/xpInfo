@@ -45,12 +45,13 @@ function addon:OnInitialize()
 
     -- Store the localization table in the addon for easy access
     self.L = L
-    -- Create frame first so it's available to options
+    -- Create frame first so it's available to options and other modules
     self:CreateFrame()
-    -- Now that self.frame is initialized by CreateFrame(), pass self to initOptions
-    local options = initOptions(self) 
-    LibStub("AceConfig-3.0"):RegisterOptionsTable(addonName, options)
+    self.frame = frame -- Ensure self.frame is set for other modules
 
+    -- Initialize options from options.lua
+    addonTable.InitializeOptions(self)
+    
     -- Initialize chat commands from cli.lua
     addonTable.InitializeChatCommands(self)
 end

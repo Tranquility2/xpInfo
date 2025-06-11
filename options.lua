@@ -1,12 +1,14 @@
--- Options to configure the behavior of the script
-function initOptions(addonRef)
-    local name = addonRef.name -- Use local for clarity and scope
-    local L = addonRef.L
-    local frame = addonRef.frame
+local optionsAddonName, addonTable = ...
+
+-- This function will be called from xpInfo.lua's OnInitialize
+function addonTable.InitializeOptions(addonInstance)
+    local L = addonInstance.L
+    local frame = addonInstance.frame -- This is the main UI frame, set by addonInstance:CreateFrame()
+    local db = addonInstance.db
 
     local options = {
         type = "group",
-        name = name,
+        name = addonInstance.name, -- Use the main addon name
         width = "normal",
         args = {
             header = {
@@ -19,42 +21,41 @@ function initOptions(addonRef)
                 order = 20, 
                 name = L["Show Frame"],
                 desc = L["Toggle the visibility of the player progression frame."],
-                get = function() return addonRef.db.profile.showFrame end,
+                get = function() return db.profile.showFrame end,
                 set = function(_, value)
-                    addonRef.db.profile.showFrame = value
+                    db.profile.showFrame = value
                     if value then
-                        frame:Show()
+                        if frame then frame:Show() end
                     else
-                        frame:Hide()
+                        if frame then frame:Hide() end
                     end
                 end,
             },
             maxSamples = {
                 type = "range",
                 order = 30, 
-                name = L["Max XP Snapshots"], -- CHANGED text
-                desc = L["Set the maximum number of recent XP snapshots to store for rate calculation."], -- CHANGED text
+                name = L["Max XP Snapshots"],
+                desc = L["Set the maximum number of recent XP snapshots to store for rate calculation."],
                 min = 2, -- Need at least 2 for a rate
                 max = 20,
                 step = 1,
                 get = function(info)
-                    return addonRef.db.profile.maxSamples
+                    return db.profile.maxSamples
                 end,
                 set = function(info, value)
-                    addonRef.db.profile.maxSamples = value
-
+                    db.profile.maxSamples = value
                     -- Prune snapshots if new maxSamples is less than current number of snapshots
-                    if addonRef.db.profile.xpSnapshots then
-                        while #addonRef.db.profile.xpSnapshots > addonRef.db.profile.maxSamples do
-                            table.remove(addonRef.db.profile.xpSnapshots, 1)
+                    if db.profile.xpSnapshots then
+                        while #db.profile.xpSnapshots > db.profile.maxSamples do
+                            table.remove(db.profile.xpSnapshots, 1)
                         end
                     end
-                    addonRef:UpdateXP() 
+                    if addonInstance.UpdateXP then addonInstance:UpdateXP() end
                 end,
             },
-            profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(addonRef.db)
+            profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(db)
         },
     }
 
-    return options
+    LibStub("AceConfig-3.0"):RegisterOptionsTable(addonInstance.name, options)
 end
