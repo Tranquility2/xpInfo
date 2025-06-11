@@ -11,8 +11,8 @@ local defaults = {
         framePosition = { "CENTER", UIParent, "CENTER", 0, 0 },
         xpSnapshots = {},
         maxSamples = 5,
-        showMinimapIcon = true, -- ADDED: Default for minimap icon
-        levelSnapshots = {} -- Ensure this is part of defaults if not already
+        showMinimapIcon = true, 
+        levelSnapshots = {}
     }
 }
 
@@ -73,7 +73,27 @@ function addon:OnEnable()
     lastXP = UnitXP("player") -- Initialize lastXP
     RequestTimePlayed() -- Request initial time played data
     self:UpdateXP()
-    addonTable:UpdateMinimapIconVisibility()
+end
+
+function addonTable:GetDB()
+    return self.db
+end
+
+function addon:ToggleUI()
+    if frame then
+        if frame:IsShown() then
+            frame:Hide()
+            self.db.profile.showFrame = false
+        else
+            frame:Show()
+            self.db.profile.showFrame = true
+            self:UpdateFrameText() -- Ensure text is updated when showing
+        end
+    else
+        self:CreateFrame() -- Create the frame if it doesn't exist
+        frame:Show()
+        self.db.profile.showFrame = true
+    end
 end
 
 -- Create the UI frame

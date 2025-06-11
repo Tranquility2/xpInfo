@@ -39,10 +39,6 @@ function addonTable.InitializeOptions(addonInstance)
                 get = function() return db.profile.showMinimapIcon end,
                 set = function(_, value)
                     db.profile.showMinimapIcon = value
-                    -- Call the update function from minimap.lua
-                    if addonTable.UpdateMinimapIconVisibility then
-                        addonTable:UpdateMinimapIconVisibility()
-                    end
                     -- Send a message so other parts of the addon can react if necessary
                     addonInstance:SendMessage("XPINFO_PROFILE_UPDATED")
                 end,
@@ -74,4 +70,8 @@ function addonTable.InitializeOptions(addonInstance)
     }
 
     LibStub("AceConfig-3.0"):RegisterOptionsTable(addonInstance.name, options)
+end
+
+function addonTable.OpenOptions()
+    LibStub("AceConfigDialog-3.0"):Open(optionsAddonName)
 end
