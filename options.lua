@@ -24,10 +24,11 @@ function addonTable.InitializeOptions(addonInstance)
                 get = function() return db.profile.showFrame end,
                 set = function(_, value)
                     db.profile.showFrame = value
-                    if value then
-                        if frame then frame:Show() end
+                    -- Call the new function from stats.lua via addonInstance
+                    if addonInstance and type(addonInstance.SetStatsFrameVisibility) == "function" then
+                        addonInstance:SetStatsFrameVisibility(addonInstance, value)
                     else
-                        if frame then frame:Hide() end
+                        print(optionsAddonName .. " [ERROR] SetStatsFrameVisibility function not found or not callable on addonInstance.")
                     end
                 end,
             },

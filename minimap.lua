@@ -10,7 +10,8 @@ function addonTable.InitializeMinimapIcon(addonInstance)
         icon = "Interface\\Icons\\Xp_icon",
         OnClick = function(_, button)
             if button == "LeftButton" then
-                addonInstance:ToggleUI()
+                -- Call the new function for toggling the stats frame
+                addonInstance:ToggleStatsFrame(addonInstance)
             elseif button == "RightButton" then
                 addonTable:OpenOptions(addonInstance)
             end
