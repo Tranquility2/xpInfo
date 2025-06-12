@@ -31,8 +31,8 @@ L["All XP snapshots cleared."] = "All XP snapshots cleared."
 L["View Snapshots"] = "View Snapshots"
 L["Open the XP snapshots viewer."] = "Open the XP snapshots viewer."
 L["Clear"] = "Clear"
-L["Mobs to Level"] = "Mobs to Level"
-L["Mobs to Level: %d (avg %s XP)"] = "Mobs to Level: %d (avg %s XP)"
+L["Actions to Level"] = "Actions to Level"
+L["Actions to Level: %d (avg %s XP)"] = "Actions to Level: %d (avg %s XP)"
 
 -- Strings for Snapshot Viewer
 L["Snapshots Viewer"] = "Snapshots Viewer"

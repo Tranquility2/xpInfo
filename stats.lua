@@ -121,7 +121,7 @@ function addonTable.UpdateStatsFrameText(addonInstance)
     local remainingString = string.format(L["Time to Level"] .. ": %s", timeToLevelString)
     statsFrame.remainingText:SetText(remainingString)
     
-    local mobsToLevelString = L["Mobs to Level"] .. ": " .. L["Calculating..."]
+    local mobsToLevelString = L["Actions to Level"] .. ": " .. L["Calculating..."]
     if addonInstance.db.profile.xpSnapshots and #addonInstance.db.profile.xpSnapshots > 0 then
         local totalXpFromSnapshots = 0
         local numValidSnapshots = 0
@@ -138,9 +138,9 @@ function addonTable.UpdateStatsFrameText(addonInstance)
             local xpNeededToLevel = maxXPValue - currentXPValue
             if xpNeededToLevel > 0 and avgXpPerEvent > 0 then
                 local mobsNeeded = math.ceil(xpNeededToLevel / avgXpPerEvent)
-                mobsToLevelString = string.format(L["Mobs to Level: %d (avg %s XP)"], mobsNeeded, string.format("%.0f", avgXpPerEvent))
+                mobsToLevelString = string.format(L["Actions to Level: %d (avg %s XP)"], mobsNeeded, string.format("%.0f", avgXpPerEvent))
             elseif xpNeededToLevel <= 0 then
-                mobsToLevelString = L["Mobs to Level"] .. ": " .. L["N/A"]
+                mobsToLevelString = L["Actions to Level"] .. ": " .. L["N/A"]
             end
         end
     end
