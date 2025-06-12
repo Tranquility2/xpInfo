@@ -125,25 +125,66 @@ function addon:UpdateXP()
     if xpNeeded <= 0 and UnitXPMax("player") > 0 then 
         self.timeToLevel = L["N/A"]
     elseif self.db.profile.xpSnapshots and #self.db.profile.xpSnapshots >= 2 then
-        local oldestSnapshot = self.db.profile.xpSnapshots[1]
-        local latestSnapshot = self.db.profile.xpSnapshots[#self.db.profile.xpSnapshots]
+        local snapshots = self.db.profile.xpSnapshots
+        local N = #snapshots
+        local oldestSnapshotTime = snapshots[1].time
+        local latestSnapshotTime = snapshots[N].time
+        local effectiveDeltaTime = latestSnapshotTime - oldestSnapshotTime
 
-        local totalGainedXP = 0
-        for i = 1, #self.db.profile.xpSnapshots do
-            totalGainedXP = totalGainedXP + self.db.profile.xpSnapshots[i].xp
-        end
-        local deltaTime = latestSnapshot.time - oldestSnapshot.time
+        -- Require some minimal time to have passed for a stable rate
+        if effectiveDeltaTime > 0.001 then 
+            local sum_x = 0.0
+            local sum_y = 0.0
+            local sum_xy = 0.0
+            local sum_x_squared = 0.0
+            local cumulative_xp_in_window = 0.0
 
-        if deltaTime > 0 and totalGainedXP > 0 then
-            local xpPerHour = (totalGainedXP / deltaTime) * 3600
-            local timeToLevelSeconds = (xpNeeded / xpPerHour) * 3600 
-            self.timeToLevel = self:FormatTime(timeToLevelSeconds)
-        else
-            self.timeToLevel = L["Calculating..."] 
-            print("totalGainedXP=" .. totalGainedXP .. ", deltatime=" .. deltaTime) 
+            for i = 1, N do
+                local snap = snapshots[i]
+                local xp_gain = snap.xp or 0 -- Default to 0 if snap.xp is nil (shouldn't happen)
+                local relative_time = snap.time - oldestSnapshotTime
+                cumulative_xp_in_window = cumulative_xp_in_window + xp_gain
+
+                sum_x = sum_x + relative_time
+                sum_y = sum_y + cumulative_xp_in_window
+                sum_xy = sum_xy + relative_time * cumulative_xp_in_window
+                sum_x_squared = sum_x_squared + relative_time^2
+            end
+
+            local denominator = N * sum_x_squared - sum_x^2
+            
+            -- Check if denominator is reasonably positive (variance of time points is sufficiently positive)
+            if denominator > 0.000001 then 
+                local xp_per_second_candidate = (N * sum_xy - sum_x * sum_y) / denominator
+                if xp_per_second_candidate > 0.000001 then -- Rate must be meaningfully positive
+                    local xpPerHour = xp_per_second_candidate * 3600
+                    -- xpNeeded is positive here due to the outer if condition
+                    local timeToLevelSeconds = (xpNeeded / xpPerHour) * 3600 
+                    self.timeToLevel = self:FormatTime(timeToLevelSeconds)
+                else
+                    self.timeToLevel = L["Calculating..."] -- Regression resulted in zero/negative rate
+                end
+            else
+                -- Denominator too small (all time points are effectively the same). Fallback to simple average.
+                -- cumulative_xp_in_window here holds the total XP gained in the window.
+                if cumulative_xp_in_window > 0 then 
+                    local xpPerHour_fallback = (cumulative_xp_in_window / effectiveDeltaTime) * 3600
+                    if xpPerHour_fallback > 0.000001 then
+                        local timeToLevelSeconds_fallback = (xpNeeded / xpPerHour_fallback) * 3600
+                        self.timeToLevel = self:FormatTime(timeToLevelSeconds_fallback)
+                    else
+                        self.timeToLevel = L["Calculating..."]
+                    end
+                else
+                    self.timeToLevel = L["Calculating..."] -- No XP gained in the window
+                end
+            end
+        else 
+            -- Not enough time elapsed for a stable rate calculation, or time anomaly
+            self.timeToLevel = L["Calculating..."]
         end
     else
-        self.timeToLevel = L["Calculating..."] 
+        self.timeToLevel = L["Calculating..."] -- Not enough snapshots
     end
     
     if self.UpdateStatsFrameText then
