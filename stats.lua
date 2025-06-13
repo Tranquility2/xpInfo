@@ -105,7 +105,7 @@ local function CreateStatsFrame(addonInstance)
     statsFrame:SetTitle(L["Progression"])
     statsFrame:SetLayout("Flow")
     statsFrame:SetWidth(width)
-    statsFrame:SetHeight(300)
+    statsFrame:SetHeight(315)
     statsFrame:EnableResize(false)
     
     -- Restore saved position if available
@@ -267,7 +267,7 @@ local function CreateStatsFrame(addonInstance)
     -- Refresh button
     refreshButton = AceGUI:Create("Button")
     refreshButton:SetText(L["Refresh"])
-    refreshButton:SetWidth(100)
+    refreshButton:SetWidth(width - 25)
     refreshButton:SetCallback("OnClick", function()
         RequestTimePlayed() -- Global WoW function
     end)
@@ -276,22 +276,18 @@ local function CreateStatsFrame(addonInstance)
     -- Settings button
     settingsButton = AceGUI:Create("Button")
     settingsButton:SetText(L["Settings"])
-    settingsButton:SetWidth(100)
+    settingsButton:SetWidth(width - 25)
     settingsButton:SetCallback("OnClick", function()
         LibStub("AceConfigDialog-3.0"):Open(addonInstance.name)
     end)
     buttonGroup:AddChild(settingsButton)
     
-    -- Debug/Snapshots button
+    -- Snapshots button
     debugButton = AceGUI:Create("Button")
     debugButton:SetText(L["View Snapshots"])
-    debugButton:SetWidth(120)
+    debugButton:SetWidth(width - 25)
     debugButton:SetCallback("OnClick", function()
-        if addonInstance.snapshotsViewerBuidler then
-            addonInstance:snapshotsViewerBuidler()
-        else
-            print(addonInstance.name .. " [ERROR] snapshotsViewerBuidler not found on addonInstance")
-        end
+        addonInstance:snapshotsViewerBuidler()
     end)
     buttonGroup:AddChild(debugButton)
     
