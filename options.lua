@@ -24,12 +24,7 @@ function addonTable.InitializeOptions(addonInstance)
                 get = function() return db.profile.showFrame end,
                 set = function(_, value)
                     db.profile.showFrame = value
-                    -- Call the new function from stats.lua via addonInstance
-                    if addonInstance and type(addonInstance.SetStatsFrameVisibility) == "function" then
-                        addonInstance:SetStatsFrameVisibility(addonInstance, value)
-                    else
-                        print(optionsAddonName .. " [ERROR] SetStatsFrameVisibility function not found or not callable on addonInstance.")
-                    end
+                    addonTable.SetAceGUIStatsFrameVisibility(addonInstance, value)
                 end,
             },
             showMinimapIcon = {

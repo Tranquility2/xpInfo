@@ -1,125 +1,164 @@
-local snapshotsAddonName, addonTable = ...
+local addonName, addonTable = ...
 
+local AceGUI = LibStub("AceGUI-3.0")
 local snapshotsFrame -- Local to this file, will be managed by the functions here
 
-local function snapshotsReport(addonInstance)
-    local snapshots = addonInstance.db.profile.xpSnapshots
-    local maxSamples = addonInstance.db.profile.maxSamples
-    local levelSnapshots = addonInstance.db.profile.levelSnapshots
-    local L = addonInstance.L
-
-    local lines = {}
-    local title = ""
+-- Function to update the snapshots viewer with current data
+local function updateSnapshotsViewer(addonInstance)
+    if not snapshotsFrame or not snapshotsFrame:IsShown() then return end
     
+    local L = addonInstance.L
+    local snapshots = addonInstance.db.profile.xpSnapshots
+    local levelSnapshots = addonInstance.db.profile.levelSnapshots
+    local maxSamples = addonInstance.db.profile.maxSamples
+    
+    -- Get the content container and clear it
+    local content = snapshotsFrame.content
+    content:ReleaseChildren()
+    
+    -- XP Snapshots section
+    local xpHeading = AceGUI:Create("Heading")
+    xpHeading:SetFullWidth(true)
     if not snapshots or #snapshots == 0 then
-        lines = { L["No XP snapshots currently recorded."] }
+        xpHeading:SetText(L["No XP snapshots currently recorded."])
     else
-        title = string.format(L["XP Snapshots (%d of %d max)"], #snapshots, maxSamples)
-        lines = { title }
+        xpHeading:SetText(string.format(L["XP Snapshots (%d of %d max)"], #snapshots, maxSamples))
+    end
+    content:AddChild(xpHeading)
+    
+    -- Add XP snapshots data
+    if snapshots and #snapshots > 0 then
+        local scrollContainer = AceGUI:Create("SimpleGroup")
+        scrollContainer:SetFullWidth(true)
+        scrollContainer:SetHeight(150)
+        scrollContainer:SetLayout("Fill")
+        content:AddChild(scrollContainer)
+        
+        local scroll = AceGUI:Create("ScrollFrame")
+        scroll:SetLayout("List")
+        scrollContainer:AddChild(scroll)
         
         for i, snap in ipairs(snapshots) do
-            table.insert(lines, string.format("  %d: " .. L["XP"] .. " %d, " .. L["Time"] .. " %s", i, snap.xp, snap.time))
+            local label = AceGUI:Create("Label")
+            label:SetText(string.format("  %d: " .. L["XP"] .. " %d, " .. L["Time"] .. " %.2f", i, snap.xp or 0, snap.time or 0))
+            label:SetFullWidth(true)
+            scroll:AddChild(label)
         end
     end
-
-    lines[#lines + 1] = "" -- Add a blank line before level snapshots
-
+    
+    -- Spacer
+    local spacer = AceGUI:Create("Label")
+    spacer:SetFullWidth(true)
+    spacer:SetText(" ")
+    content:AddChild(spacer)
+    
+    -- Level Snapshots section
+    local levelHeading = AceGUI:Create("Heading")
+    levelHeading:SetFullWidth(true)
     if not levelSnapshots or #levelSnapshots == 0 then
-        lines[#lines + 1] = L["No level snapshots recorded."]
+        levelHeading:SetText(L["No level snapshots recorded."])
     else
-        title = L["XP Snapshots for Levels"]
-        lines[#lines + 1] = title .. " (" .. #levelSnapshots .. " " .. L["recorded"] .. "):"
+        levelHeading:SetText(L["XP Snapshots for Levels"] .. " (" .. #levelSnapshots .. " " .. L["recorded"] .. "):")
+    end
+    content:AddChild(levelHeading)
+    
+    -- Add level snapshots data
+    if levelSnapshots and #levelSnapshots > 0 then
+        local scrollContainer = AceGUI:Create("SimpleGroup")
+        scrollContainer:SetFullWidth(true)
+        scrollContainer:SetHeight(150)
+        scrollContainer:SetLayout("Fill")
+        content:AddChild(scrollContainer)
+        
+        local scroll = AceGUI:Create("ScrollFrame")
+        scroll:SetLayout("List")
+        scrollContainer:AddChild(scroll)
+        
         for i, snap in ipairs(levelSnapshots) do
-            -- Assuming snap.time is totalTimePlayed from LevelUp, format it if addonInstance.FormatTime exists
             local timeString = snap.time
             if addonInstance.FormatTime then
                 timeString = addonInstance:FormatTime(snap.time)
             end
-            table.insert(lines, string.format("  %d: " .. L["Level"] .. " %d, " .. L["Time Played"] .. " %s", i, snap.level, timeString))
+            
+            local label = AceGUI:Create("Label")
+            label:SetText(string.format("  %d: " .. L["Level"] .. " %d, " .. L["Time Played"] .. " %s", i, snap.level or 0, timeString or "0:00:00"))
+            label:SetFullWidth(true)
+            scroll:AddChild(label)
         end
     end
-
-    return table.concat(lines, "\n")
-end
-
-local function updateSnapshotsViewer(addonInstance)
-    if snapshotsFrame and snapshotsFrame.text then
-        local reportText = snapshotsReport(addonInstance)
-        snapshotsFrame.text:SetText(reportText)
-    end
-end
-
-local function ensureDebugFrameCreated(addonInstance)
-    if not snapshotsFrame then
-        local L = addonInstance.L
-        local currentAddonName = addonInstance.name -- Use the main addon's name for UI elements
-
-        snapshotsFrame = CreateFrame("Frame", currentAddonName .. "DebugFrame", UIParent, "BasicFrameTemplateWithInset") -- Retaining DebugFrame in name for now to avoid breaking existing saved var if any, can be changed later
-        snapshotsFrame:SetWidth(350)
-        snapshotsFrame:SetHeight(250)
-        snapshotsFrame:SetPoint("CENTER", UIParent, "TOP", 0, -150)
-        snapshotsFrame:SetMovable(true)
-        snapshotsFrame:EnableMouse(true)
-        snapshotsFrame:RegisterForDrag("LeftButton")
-        snapshotsFrame:SetScript("OnDragStart", snapshotsFrame.StartMoving)
-        snapshotsFrame:SetScript("OnDragStop", function(f)
-            f:StopMovingOrSizing()
-        end)
-
-        snapshotsFrame.title = snapshotsFrame:CreateFontString(currentAddonName .. "DebugFrameTitle", "ARTWORK", "GameFontNormalLarge")
-        snapshotsFrame.title:SetPoint("TOP", 0, -5)
-        snapshotsFrame.title:SetText(L["Snapshots Viewer"]) 
-
-        snapshotsFrame.text = snapshotsFrame:CreateFontString(currentAddonName .. "DebugFrameText", "ARTWORK", "GameFontNormal")
-        snapshotsFrame.text:SetPoint("TOPLEFT", 15, -30)
-        snapshotsFrame.text:SetJustifyH("LEFT")
-        snapshotsFrame.text:SetWidth(snapshotsFrame:GetWidth() - 30)
-
-        local closeButton = CreateFrame("Button", currentAddonName .. "DebugCloseButton", snapshotsFrame, "UIPanelButtonTemplate")
-        closeButton:SetText(L["Close"]) 
-        closeButton:SetWidth(80)
-        closeButton:SetHeight(20)
-        closeButton:SetPoint("BOTTOMRIGHT", -10, 10)
-        closeButton:SetScript("OnClick", function()
-            snapshotsFrame:Hide()
-        end)
-
-        local clearButton = CreateFrame("Button", currentAddonName .. "DebugClearButton", snapshotsFrame, "UIPanelButtonTemplate")
-        clearButton:SetText(L["Clear"]) 
-        clearButton:SetWidth(100)
-        clearButton:SetHeight(20)
-        clearButton:SetPoint("BOTTOMLEFT", 10, 10)
-        clearButton:SetScript("OnClick", function()
-            addonInstance.db.profile.xpSnapshots = {} 
-            print(currentAddonName .. ": " .. L["All XP snapshots cleared."]) 
-            if addonInstance.UpdateFrameText then addonInstance:UpdateFrameText() end
-            updateSnapshotsViewer(addonInstance) 
-        end)
-        snapshotsFrame:Hide() 
-    end
-end
-
-local function snapshotsViewerBuidler(addonInstance)
-    ensureDebugFrameCreated(addonInstance) 
-
-    if snapshotsFrame:IsShown() then
+    
+    -- Button container
+    local buttonGroup = AceGUI:Create("SimpleGroup")
+    buttonGroup:SetFullWidth(true)
+    buttonGroup:SetLayout("Flow")
+    content:AddChild(buttonGroup)
+    
+    -- Clear XP button
+    local clearButton = AceGUI:Create("Button")
+    clearButton:SetText(L["Clear"])
+    clearButton:SetWidth(120)
+    clearButton:SetCallback("OnClick", function()
+        if addonInstance.db.profile then
+            addonInstance.db.profile.xpSnapshots = {}
+            print(addonName .. ": " .. L["All XP snapshots cleared."])
+            updateSnapshotsViewer(addonInstance)
+        end
+    end)
+    buttonGroup:AddChild(clearButton)
+    
+    -- Close button
+    local closeButton = AceGUI:Create("Button")
+    closeButton:SetText(L["Close"])
+    closeButton:SetWidth(120)
+    closeButton:SetCallback("OnClick", function() 
         snapshotsFrame:Hide()
-    else
-        updateSnapshotsViewer(addonInstance) 
-        snapshotsFrame:Show()
-        snapshotsFrame:Raise() 
-    end
+    end)
+    buttonGroup:AddChild(closeButton)
 end
 
-function addonTable.InitializeSnapshots(addonInstance)
-    -- Attach functions to the addon instance so they can be called with self:methodName()
-    addonInstance.snapshotsReport = function() return snapshotsReport(addonInstance) end
-    addonInstance.updateSnapshotsViewer = function() updateSnapshotsViewer(addonInstance) end
-    -- ensureDebugFrameCreated is mostly internal to this module, but snapshotsViewerBuidler needs it.
-    -- snapshotsViewerBuidler is the main public method for the UI interaction.
-    addonInstance.snapshotsViewerBuidler = function() snapshotsViewerBuidler(addonInstance) end
+-- Function to build the snapshots viewer
+local function snapshotsViewerBuilder(addonInstance)
+    -- Don't create a new one if it already exists
+    if snapshotsFrame and snapshotsFrame:IsShown() then
+        updateSnapshotsViewer(addonInstance)
+        return
+    end
+    
+    local L = addonInstance.L
+    
+    -- Create main frame
+    snapshotsFrame = AceGUI:Create("Window")
+    snapshotsFrame:SetTitle(L["Snapshots Viewer"])
+    snapshotsFrame:SetLayout("Fill")
+    snapshotsFrame:SetWidth(500)
+    snapshotsFrame:SetHeight(400)
+    snapshotsFrame:EnableResize(false)
+    
+    -- Create scrolling content area
+    local scrollContainer = AceGUI:Create("SimpleGroup")
+    scrollContainer:SetLayout("Fill")
+    scrollContainer:SetFullWidth(true)
+    scrollContainer:SetFullHeight(true)
+    snapshotsFrame:AddChild(scrollContainer)
+    
+    local scroll = AceGUI:Create("ScrollFrame")
+    scroll:SetLayout("Flow")
+    scrollContainer:AddChild(scroll)
+    
+    -- Save the content pane for later updates
+    snapshotsFrame.content = scroll
+    
+    -- Initial update
+    updateSnapshotsViewer(addonInstance)
+end
 
-    -- For direct calls from other modules if needed (e.g. addonTable.UpdateSnapshotsViewer(addonInstance))
-    -- However, instance methods are generally preferred.
-    addonTable.UpdateSnapshotsViewer = updateSnapshotsViewer 
+-- Initialize the snapshots module
+function addonTable.InitializeAceGUISnapshots(addonInstance)
+    -- Attach functions to the addon instance
+    addonInstance.updateAceGUISnapshotsViewer = function() updateSnapshotsViewer(addonInstance) end
+    addonInstance.snapshotsAceGUIViewerBuilder = function() snapshotsViewerBuilder(addonInstance) end
+    
+    -- Export to addonTable if needed
+    addonTable.UpdateAceGUISnapshotsViewer = updateSnapshotsViewer
+    addonTable.SnapshotsAceGUIViewerBuilder = snapshotsViewerBuilder
 end

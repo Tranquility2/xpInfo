@@ -7,6 +7,7 @@ if not L then return end
 L["Progression"] = "Progression"
 L["Current XP"] = "Current XP"
 L["Rested XP"] = "Rested XP"
+L["XP Progress"] = "XP Progress"
 L["Time Played (Total)"] = "Time Played (Total)"
 L["Time Played (Level)"] = "Time Played (Level)"
 L["Time to Level"] = "Time to Level"
@@ -33,6 +34,8 @@ L["Open the XP snapshots viewer."] = "Open the XP snapshots viewer."
 L["Clear"] = "Clear"
 L["Actions to Level"] = "Actions to Level"
 L["Actions to Level: %d (avg %s XP)"] = "Actions to Level: %d (avg %s XP)"
+L["Level Progress"] = "Level Progress"
+L["Summary"] = "Summary"
 
 -- Strings for Snapshot Viewer
 L["Snapshots Viewer"] = "Snapshots Viewer"
@@ -59,3 +62,7 @@ L["Toggle the visibility of the minimap icon."] = "Toggle the visibility of the 
 L["xpInfo - Click to toggle frame, Alt-Click to open settings."] = "xpInfo - Click to toggle frame, Alt-Click to open settings."
 L["Frame is currently visible."] = "Frame is currently visible."
 L["Frame is currently hidden."] = "Frame is currently hidden."
+
+-- Progress bar
+L["remaining"] = "remaining"
+L["After Rested"] = "After Rested"

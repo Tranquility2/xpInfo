@@ -1,96 +1,29 @@
 local addonName, addonTable = ...
 
-local statsFrame -- The main UI frame, local to this file
+-- Local variables to hold UI elements
+local AceGUI = LibStub("AceGUI-3.0")
+local statsFrame, xpLabel, timeLabel, remainingLabel, actionsLabel
+local refreshButton, settingsButton, debugButton
 
--- Create the UI frame
-function addonTable.CreateStatsFrame(addonInstance)
-    local L = addonInstance.L -- Get localization table from addonInstance
-    statsFrame = CreateFrame("Frame", addonInstance.name .. "Frame", UIParent, "BasicFrameTemplateWithInset")
-    statsFrame:SetWidth(300)
-    statsFrame:SetHeight(200) -- Initial height, will be adjusted by UpdateStatsFrameText
-    statsFrame:SetPoint(unpack(addonInstance.db.profile.framePosition))
-    statsFrame:SetMovable(true)
-    statsFrame:EnableMouse(true)
-    statsFrame:RegisterForDrag("LeftButton")
-    statsFrame:SetScript("OnDragStart", statsFrame.StartMoving)
-    statsFrame:SetScript("OnDragStop", function(f) 
-        f:StopMovingOrSizing()
-        local xOffset = f:GetLeft()
-        local yOffset = f:GetTop() - GetScreenHeight()
-        addonInstance.db.profile.framePosition = { "TOPLEFT", "UIParent", "TOPLEFT", xOffset, yOffset }
-        f:ClearAllPoints()
-        f:SetPoint("TOPLEFT", UIParent, "TOPLEFT", xOffset, yOffset)
-        addonTable.UpdateStatsFrameText(addonInstance) 
-    end)
-    statsFrame:SetScript("OnMouseDown", function(f, button)
-        addonTable.UpdateStatsFrameText(addonInstance) 
-    end)
-
-    statsFrame.title = statsFrame:CreateFontString(addonInstance.name .. "FrameTitle", "ARTWORK", "GameFontNormalLarge")
-    statsFrame.title:SetPoint("TOP", 0, -5)
-    statsFrame.title:SetText(L["Progression"])
-
-    statsFrame.xpText = statsFrame:CreateFontString(addonInstance.name .. "FrameXPText", "ARTWORK", "GameFontNormal")
-    statsFrame.xpText:SetPoint("TOPLEFT", 15, -30)
-    statsFrame.xpText:SetJustifyH("LEFT")
-
-    statsFrame.remainingText = statsFrame:CreateFontString(addonInstance.name .. "FrameRemainingXPText", "ARTWORK", "GameFontNormal")
-    statsFrame.remainingText:SetPoint("TOPLEFT", statsFrame.xpText, "BOTTOMLEFT", 0, -5)
-    statsFrame.remainingText:SetJustifyH("LEFT")
-
-    statsFrame.mobsToLevelText = statsFrame:CreateFontString(addonInstance.name .. "FrameMobsToLevelText", "ARTWORK", "GameFontNormal")
-    statsFrame.mobsToLevelText:SetPoint("TOPLEFT", statsFrame.remainingText, "BOTTOMLEFT", 0, -5)
-    statsFrame.mobsToLevelText:SetJustifyH("LEFT")
-
-    statsFrame.timeText = statsFrame:CreateFontString(addonInstance.name .. "FrameTimeText", "ARTWORK", "GameFontNormal")
-    statsFrame.timeText:SetPoint("TOPLEFT", statsFrame.mobsToLevelText, "BOTTOMLEFT", 0, -5)
-    statsFrame.timeText:SetJustifyH("LEFT")
-
-    statsFrame.refreshButton = CreateFrame("Button", addonInstance.name .. "RefreshButton", statsFrame, "UIPanelButtonTemplate")
-    statsFrame.refreshButton:SetText(L["Refresh"])
-    statsFrame.refreshButton:SetWidth(80)
-    statsFrame.refreshButton:SetHeight(20)
-    statsFrame.refreshButton:SetPoint("BOTTOMLEFT", statsFrame, "BOTTOMLEFT", 10, 15)
-    statsFrame.refreshButton:SetScript("OnClick", function()
-        RequestTimePlayed() -- Global function
-    end)
-
-    statsFrame.settingsButton = CreateFrame("Button", addonInstance.name .. "SettingsButton", statsFrame, "UIPanelButtonTemplate")
-    statsFrame.settingsButton:SetText(L["Settings"])
-    statsFrame.settingsButton:SetWidth(80)
-    statsFrame.settingsButton:SetHeight(20)
-    statsFrame.settingsButton:SetPoint("BOTTOMLEFT", statsFrame, "BOTTOMLEFT", 90, 15)
-    statsFrame.settingsButton:SetScript("OnClick", function()
-        LibStub("AceConfigDialog-3.0"):Open(addonInstance.name) -- Use addonInstance.name
-    end)
-
-    statsFrame.debugButton = CreateFrame("Button", addonInstance.name .. "DebugButton", statsFrame, "UIPanelButtonTemplate")
-    statsFrame.debugButton:SetText(L["View Snapshots"])
-    statsFrame.debugButton:SetWidth(120)
-    statsFrame.debugButton:SetHeight(20)
-    statsFrame.debugButton:SetPoint("BOTTOMRIGHT", statsFrame, "BOTTOMRIGHT", -10, 15)
-    statsFrame.debugButton:SetScript("OnClick", function()
-        if addonInstance.snapshotsViewerBuidler then -- Ensure the method exists on addonInstance
-            addonInstance:snapshotsViewerBuidler()
-        else
-            print(addonInstance.name .. " [ERROR] snapshotsViewerBuidler not found on addonInstance")
-        end
-    end)
-
-    statsFrame:SetScript("OnHide", function(f)
-        addonInstance.db.profile.showFrame = false
-    end)
-
-    addonTable.UpdateStatsFrameText(addonInstance)
-    -- Return the created frame so it can be stored on addonInstance if needed by other modules (like options.lua)
-    return statsFrame 
+-- Helper function to format large numbers (e.g., 1000 -> 1k, 1000000 -> 1M)
+local function FormatLargeNumber(num)
+    if num >= 1000000 then
+        return string.format("%.1fM", num / 1000000)
+    elseif num >= 10000 then
+        return string.format("%.1fk", num / 1000)
+    elseif num >= 1000 then
+        return string.format("%.1fk", num / 1000)
+    else
+        return tostring(num)
+    end
 end
 
--- Update the text on the frame
-function addonTable.UpdateStatsFrameText(addonInstance)
+-- Function to update the content of the frame
+local function UpdateStatsFrameText(addonInstance)
     if not statsFrame or not statsFrame:IsShown() then return end
     local L = addonInstance.L
 
+    -- XP Information
     local currentXP = UnitXP("player")
     local maxXP = UnitXPMax("player")
     local restedXP = GetXPExhaustion() or 0
@@ -105,73 +38,330 @@ function addonTable.UpdateStatsFrameText(addonInstance)
     local xpString = string.format(L["Current XP"] .. ": %s / %s (%s%%)\n" .. L["Rested XP"] .. ": %s / %s (%s%%)", 
                                    currentXP, maxXP, string.format("%.1f", currentXPPerc), 
                                    restedXP, maxXP, string.format("%.1f", restedXPPerc))
-    statsFrame.xpText:SetText(xpString)
+    xpLabel:SetText(xpString)
 
+    -- Update progress bar if it exists
+    if statsFrame.xpProgressBar then
+        local xpBar = statsFrame.xpProgressBar
+        xpBar:SetValue(currentXPPerc)
+        
+        -- Better format for the text display - show percentage and remaining XP
+        if xpBar.text then
+            -- Format large numbers with commas for better readability
+            local function FormatNumber(num)
+                if num >= 1000 then
+                    return string.format("%s", FormatLargeNumber(num))
+                else
+                    return tostring(num)
+                end
+            end
+            
+            local formattedPercent = string.format("%.1f%%", currentXPPerc)
+            local formattedRemaining = FormatNumber(maxXP - currentXP)
+            
+            xpBar.text:SetText(string.format("%s (%s %s)", 
+                formattedPercent, formattedRemaining, L["remaining"]))
+        end
+        
+        -- Update rested bonus display if it exists
+        if xpBar.restedBar then
+            local restedWidth = 0
+            if currentXPPerc < 100 then
+                -- Set the width based on where the current XP ends
+                restedWidth = math.min(restedXPPerc, 100 - currentXPPerc)
+                xpBar.restedBar:SetValue(restedWidth)
+            else
+                -- At max XP, don't show rested bonus
+                xpBar.restedBar:SetValue(0)
+            end
+        end
+    end
+
+    -- Time Information
     local timePlayedTotalString = addonInstance:FormatTime(addonInstance.timePlayedTotal or 0)
     local timePlayedLevelString = addonInstance:FormatTime(addonInstance.timePlayedLevel or 0)
-    local timeToLevelString = addonInstance.timeToLevel or L["Calculating..."]
 
-
-    local timeString = string.format(L["Time Played (Total)"] .. ": %s\n" .. L["Time Played (Level)"] .. ": %s\n",
+    local timeString = string.format(L["Time Played (Total)"] .. ": %s\n" .. L["Time Played (Level)"] .. ": %s", 
                                    timePlayedTotalString, timePlayedLevelString)
-    statsFrame.timeText:SetText(timeString)
+    timeLabel:SetText(timeString)
 
+    -- Remaining time info
+    local timeToLevelString = addonInstance.timeToLevel or L["Calculating..."]
     local remainingString = string.format(L["Time to Level"] .. ": %s", timeToLevelString)
-    statsFrame.remainingText:SetText(remainingString)
+    remainingLabel:SetText(remainingString)
 
+    -- Actions to Level
     local mobsToLevelString = addonInstance.mobsToLevelString or (L["Actions to Level"] .. ": " .. L["Calculating..."])
-    statsFrame.mobsToLevelText:SetText(mobsToLevelString)
-    
-    local titleH = statsFrame.title:GetStringHeight()
-    local xpTextH = statsFrame.xpText:GetStringHeight()
-    local timeTextH = statsFrame.timeText:GetStringHeight()
-    local remainingTextH = statsFrame.remainingText:GetStringHeight()
-    local mobsToLevelTextH = statsFrame.mobsToLevelText:GetStringHeight()
-    local buttonH = statsFrame.refreshButton:GetHeight()
-    statsFrame:SetHeight(titleH + xpTextH + remainingTextH + mobsToLevelTextH + timeTextH + buttonH + 60)
+    actionsLabel:SetText(mobsToLevelString)
 end
 
--- Toggle the UI frame's visibility
-function addonTable.ToggleStatsFrame(addonInstance)
-    if not statsFrame then
-        addonTable.CreateStatsFrame(addonInstance) -- Create if it doesn't exist
+-- Create the AceGUI frame
+local function CreateStatsFrame(addonInstance)
+    local L = addonInstance.L
+    
+    -- Create a frame container
+    statsFrame = AceGUI:Create("Window")
+    statsFrame:SetTitle(L["Progression"])
+    statsFrame:SetLayout("Flow")
+    statsFrame:SetWidth(350)
+    statsFrame:SetHeight(300)
+    statsFrame:EnableResize(false)
+    
+    -- Restore saved position if available
+    if addonInstance.db.profile.framePosition then
+        local pos = addonInstance.db.profile.framePosition
+        statsFrame:SetPoint(pos[1], pos[2], pos[3], pos[4], pos[5])
     end
     
-    if statsFrame:IsShown() then
+    -- Save position on close
+    statsFrame:SetCallback("OnClose", function(widget)
+        addonInstance.db.profile.showFrame = false
+    end)
+
+    -- Create the XP bar container with InlineGroup for better visual styling
+    local progressContainer = AceGUI:Create("InlineGroup")
+    progressContainer:SetFullWidth(true)
+    progressContainer:SetHeight(45)
+    progressContainer:SetLayout("Fill")
+    statsFrame:AddChild(progressContainer)
+    
+    -- We'll use a frame inside the InlineGroup for our actual progress bars
+    local barHolder = CreateFrame("Frame", nil, progressContainer.frame)
+    barHolder:SetPoint("TOPLEFT", progressContainer.frame, 10, -20)
+    barHolder:SetPoint("BOTTOMRIGHT", progressContainer.frame, -10, 10)
+    
+    -- Background frame (gray background)
+    local background = CreateFrame("Frame", nil, barHolder)
+    background:SetPoint("TOPLEFT", barHolder, "TOPLEFT", 0, 0)
+    background:SetPoint("BOTTOMRIGHT", barHolder, "BOTTOMRIGHT", 0, 0)
+    background:SetFrameLevel(barHolder:GetFrameLevel())
+    
+    -- Background texture
+    local bgTexture = background:CreateTexture(nil, "BACKGROUND")
+    bgTexture:SetAllPoints(background)
+    bgTexture:SetTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    bgTexture:SetVertexColor(0.2, 0.2, 0.2, 0.8) -- Dark gray
+    
+    -- Main XP bar - using local variable and storing in the statsFrame
+    local xpBar = CreateFrame("StatusBar", nil, background)
+    xpBar:SetPoint("TOPLEFT", background, "TOPLEFT", 0, 0)
+    xpBar:SetPoint("BOTTOMRIGHT", background, "BOTTOMRIGHT", 0, 0)
+    xpBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    -- Blue color that matches WoW's default XP bar but slightly brighter
+    xpBar:SetStatusBarColor(0.0, 0.39, 0.88, 1.0) -- Medium blue
+    xpBar:SetMinMaxValues(0, 100)
+    xpBar:SetValue(0)
+    xpBar:SetFrameLevel(background:GetFrameLevel() + 1)
+    
+    -- Store the progress bar in the statsFrame for access elsewhere
+    statsFrame.xpProgressBar = xpBar
+    
+    -- Rested XP overlay
+    xpBar.restedBar = CreateFrame("StatusBar", nil, background)
+    xpBar.restedBar:SetPoint("TOPLEFT", xpBar:GetStatusBarTexture(), "TOPRIGHT", 0, 0)
+    xpBar.restedBar:SetPoint("BOTTOMRIGHT", background, "BOTTOMRIGHT", 0, 0)
+    xpBar.restedBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    xpBar.restedBar:SetStatusBarColor(0.6, 0, 0.6, 0.6) -- Purple slightly more opaque
+    xpBar.restedBar:SetMinMaxValues(0, 100)
+    xpBar.restedBar:SetValue(0)
+    xpBar.restedBar:SetFrameLevel(xpBar:GetFrameLevel())
+    
+    -- Add a border around the bar - using 9.0+ compatible approach
+    local border = CreateFrame("Frame", nil, background, "BackdropTemplate")
+    border:SetPoint("TOPLEFT", background, "TOPLEFT", -1, 1)
+    border:SetPoint("BOTTOMRIGHT", background, "BOTTOMRIGHT", 1, -1)
+    border:SetBackdrop({
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 8,
+        insets = {left = 0, right = 0, top = 0, bottom = 0},
+    })
+    border:SetFrameLevel(background:GetFrameLevel() - 1)
+    
+    -- Text overlay with improved visibility
+    xpBar.text = xpBar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    xpBar.text:SetPoint("CENTER", xpBar, "CENTER", 0, 0)
+    xpBar.text:SetText("0%")
+    xpBar.text:SetTextColor(1, 1, 1, 1) -- Bright white text
+    xpBar.text:SetShadowOffset(1, -1)   -- Text shadow for better readability
+    xpBar.text:SetShadowColor(0, 0, 0, 1)
+    
+    -- Add tooltip functionality
+    xpBar:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
+        GameTooltip:ClearLines()
+        
+        local currentXP = UnitXP("player")
+        local maxXP = UnitXPMax("player")
+        local restedXP = GetXPExhaustion() or 0
+        local currentXPPerc = maxXP > 0 and (currentXP / maxXP) * 100 or 0
+        local restedXPPerc = maxXP > 0 and (restedXP / maxXP) * 100 or 0
+        local L = addonInstance.L
+        
+        GameTooltip:AddLine(L["XP Progress"], 1, 1, 1)
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddDoubleLine(L["Current XP"] .. ":", string.format("%s / %s (%0.1f%%)", 
+            currentXP, maxXP, currentXPPerc), 1, 1, 1, 1, 1, 1)
+        
+        if restedXP > 0 then
+            GameTooltip:AddDoubleLine(L["Rested XP"] .. ":", string.format("%s (%0.1f%%)", 
+                restedXP, restedXPPerc), 1, 1, 1, 0.6, 0, 0.6)
+            GameTooltip:AddDoubleLine(L["After Rested"] .. ":", string.format("%0.1f%%", 
+                math.min(100, currentXPPerc + restedXPPerc)), 1, 1, 1, 0.6, 0.6, 1)
+        end
+        
+        if addonInstance.timeToLevel and addonInstance.timeToLevel ~= L["Calculating..."] and addonInstance.timeToLevel ~= L["N/A"] then
+            GameTooltip:AddLine(" ")
+            GameTooltip:AddDoubleLine(L["Time to Level"] .. ":", addonInstance.timeToLevel, 1, 1, 1, 0, 1, 0)
+        end
+        
+        if addonInstance.actionsToLevelCount and addonInstance.actionsToLevelAvgXP then
+            GameTooltip:AddDoubleLine(L["Actions to Level"] .. ":", string.format("%d (avg %d XP)", 
+                addonInstance.actionsToLevelCount, addonInstance.actionsToLevelAvgXP), 1, 1, 1, 0, 1, 0)
+        end
+        
+        GameTooltip:Show()
+    end)
+    
+    xpBar:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+    
+    
+    local xpHeader = AceGUI:Create("Heading")
+    xpHeader:SetText(L["XP Progress"])
+    xpHeader:SetFullWidth(true)
+    statsFrame:AddChild(xpHeader)
+
+    -- XP Information Label
+    xpLabel = AceGUI:Create("Label")
+    xpLabel:SetWidth(325)
+    xpLabel:SetText(L["Current XP"] .. ": 0 / 0 (0%)\n" .. L["Rested XP"] .. ": 0 / 0 (0%)")
+    statsFrame:AddChild(xpLabel)
+
+    local levelHeader = AceGUI:Create("Heading")
+    levelHeader:SetText(L["Level Progress"])
+    levelHeader:SetFullWidth(true)
+    statsFrame:AddChild(levelHeader)
+    
+    -- Time to level label
+    remainingLabel = AceGUI:Create("Label")
+    remainingLabel:SetWidth(325)
+    remainingLabel:SetText(L["Time to Level"] .. ": " .. L["Calculating..."])
+    statsFrame:AddChild(remainingLabel)
+    
+    -- Actions to level label
+    actionsLabel = AceGUI:Create("Label")
+    actionsLabel:SetWidth(325)
+    actionsLabel:SetText(L["Actions to Level"] .. ": " .. L["Calculating..."])
+    statsFrame:AddChild(actionsLabel)
+    
+    local sumHeader = AceGUI:Create("Heading")
+    sumHeader:SetText(L["Summary"])
+    sumHeader:SetFullWidth(true)
+    statsFrame:AddChild(sumHeader)
+
+    -- Time played label
+    timeLabel = AceGUI:Create("Label")
+    timeLabel:SetWidth(325)
+    timeLabel:SetText(L["Time Played (Total)"] .. ": 00:00:00\n" .. L["Time Played (Level)"] .. ": 00:00:00")
+    statsFrame:AddChild(timeLabel)
+    
+    -- Add some space before buttons
+    local spacer = AceGUI:Create("Label")
+    spacer:SetWidth(325)
+    spacer:SetText(" ")
+    statsFrame:AddChild(spacer)
+    
+    -- Button group container
+    local buttonGroup = AceGUI:Create("SimpleGroup")
+    buttonGroup:SetLayout("Flow")
+    buttonGroup:SetWidth(325)
+    buttonGroup:SetHeight(30)
+    statsFrame:AddChild(buttonGroup)
+    
+    -- Refresh button
+    refreshButton = AceGUI:Create("Button")
+    refreshButton:SetText(L["Refresh"])
+    refreshButton:SetWidth(100)
+    refreshButton:SetCallback("OnClick", function()
+        RequestTimePlayed() -- Global WoW function
+    end)
+    buttonGroup:AddChild(refreshButton)
+    
+    -- Settings button
+    settingsButton = AceGUI:Create("Button")
+    settingsButton:SetText(L["Settings"])
+    settingsButton:SetWidth(100)
+    settingsButton:SetCallback("OnClick", function()
+        LibStub("AceConfigDialog-3.0"):Open(addonInstance.name)
+    end)
+    buttonGroup:AddChild(settingsButton)
+    
+    -- Debug/Snapshots button
+    debugButton = AceGUI:Create("Button")
+    debugButton:SetText(L["View Snapshots"])
+    debugButton:SetWidth(120)
+    debugButton:SetCallback("OnClick", function()
+        if addonInstance.snapshotsViewerBuidler then
+            addonInstance:snapshotsViewerBuidler()
+        else
+            print(addonInstance.name .. " [ERROR] snapshotsViewerBuidler not found on addonInstance")
+        end
+    end)
+    buttonGroup:AddChild(debugButton)
+    
+    -- Update the frame with current data
+    UpdateStatsFrameText(addonInstance)
+    
+    return statsFrame
+end
+
+-- Toggle the UI frame visibility
+local function ToggleStatsFrame(addonInstance)
+    if statsFrame and statsFrame:IsShown() then
         statsFrame:Hide()
         addonInstance.db.profile.showFrame = false
     else
+        if not statsFrame then
+            CreateStatsFrame(addonInstance)
+        end
         statsFrame:Show()
         addonInstance.db.profile.showFrame = true
-        addonTable.UpdateStatsFrameText(addonInstance) -- Ensure text is updated when showing
+        UpdateStatsFrameText(addonInstance)
     end
 end
 
 -- Explicitly show the frame
-function addonTable.ShowStatsFrame(addonInstance)
+local function ShowStatsFrame(addonInstance)
     if not statsFrame then
-        addonTable.CreateStatsFrame(addonInstance)
+        CreateStatsFrame(addonInstance)
     end
-    if statsFrame and not statsFrame:IsShown() then
-        statsFrame:Show()
-        addonInstance.db.profile.showFrame = true
-        addonTable.UpdateStatsFrameText(addonInstance)
-    end
+    statsFrame:Show()
+    addonInstance.db.profile.showFrame = true
+    UpdateStatsFrameText(addonInstance)
 end
 
 -- Explicitly hide the frame
-function addonTable.HideStatsFrame(addonInstance)
-    if statsFrame and statsFrame:IsShown() then
+local function HideStatsFrame(addonInstance)
+    if statsFrame then
         statsFrame:Hide()
         addonInstance.db.profile.showFrame = false
     end
 end
 
 -- Function to be called by options to set visibility
-function addonTable.SetStatsFrameVisibility(addonInstance, shouldShow)
+local function SetStatsFrameVisibility(addonInstance, shouldShow)
     if shouldShow then
-        addonTable.ShowStatsFrame(addonInstance)
+        ShowStatsFrame(addonInstance)
     else
-        addonTable.HideStatsFrame(addonInstance)
+        HideStatsFrame(addonInstance)
     end
 end
+
+-- Export functions to the addon table
+addonTable.CreateAceGUIStatsFrame = CreateStatsFrame
+addonTable.UpdateAceGUIStatsFrameText = UpdateStatsFrameText
+addonTable.ToggleAceGUIStatsFrame = ToggleStatsFrame
+addonTable.ShowAceGUIStatsFrame = ShowStatsFrame
+addonTable.HideAceGUIStatsFrame = HideStatsFrame
+addonTable.SetAceGUIStatsFrameVisibility = SetStatsFrameVisibility

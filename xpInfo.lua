@@ -50,30 +50,30 @@ function addon:OnInitialize()
     -- Store the localization table in the addon for easy access
     self.L = L
     
-    -- Initialize stats frame from stats.lua
-    -- The CreateStatsFrame function in stats.lua will create and return the frame.
-    -- We store it on self.statsFrame so other parts (like options.lua if it needs a direct reference) can use it.
-    -- Note: options.lua was previously looking for self.frame. We'll need to update that or keep self.frame aliased.
-    self.statsFrame = addonTable.CreateStatsFrame(self) 
-    self.frame = self.statsFrame -- Alias for compatibility with options.lua if it uses self.frame
-
     -- Initialize options from options.lua
     addonTable.InitializeOptions(self)
     -- Initialize chat commands from cli.lua
     addonTable.InitializeChatCommands(self)
-    -- Initialize snapshot functions from snapshots.lua
-    addonTable.InitializeSnapshots(self)
+    -- Initialize AceGUI snapshot functions
+    addonTable.InitializeAceGUISnapshots(self)
     -- Initialize minimap icon from minimap.lua
     addonTable.InitializeMinimapIcon(self)
     -- Make UpdateMinimapIconVisibility available on the addon instance
     self.UpdateMinimapIconVisibility = addonTable.UpdateMinimapIconVisibility
 
-    -- Make frame control functions from stats.lua available on the addon instance
-    self.ToggleStatsFrame = addonTable.ToggleStatsFrame
-    self.UpdateStatsFrameText = addonTable.UpdateStatsFrameText
-    self.ShowStatsFrame = addonTable.ShowStatsFrame
-    self.HideStatsFrame = addonTable.HideStatsFrame
-    self.SetStatsFrameVisibility = addonTable.SetStatsFrameVisibility -- For options
+    -- Use AceGUI stats frame functions
+    self.ToggleStatsFrame = addonTable.ToggleAceGUIStatsFrame
+    self.UpdateStatsFrameText = addonTable.UpdateAceGUIStatsFrameText
+    self.ShowStatsFrame = addonTable.ShowAceGUIStatsFrame
+    self.HideStatsFrame = addonTable.HideAceGUIStatsFrame
+    self.SetStatsFrameVisibility = addonTable.SetAceGUIStatsFrameVisibility -- For options
+    
+    -- Use AceGUI snapshots viewer
+    self.snapshotsViewerBuidler = self.snapshotsAceGUIViewerBuilder -- Fix the typo in the original function name
+    
+    -- Create the initial frame - but don't show it yet
+    self.statsFrame = addonTable.CreateAceGUIStatsFrame(self)
+    self.frame = self.statsFrame -- Alias for compatibility with options.lua if it uses self.frame
 end
 
 -- Called when the addon is enabled
@@ -108,7 +108,14 @@ function addon:UpdateXP()
 
         -- Add a new snapshot: {cumulative XP for this level, session time when snapshot taken}
         table.insert(self.db.profile.xpSnapshots, {xp = newXPGained, time = GetTime()})
-        if self.updateSnapshotsViewer then self:updateSnapshotsViewer() end -- Check if snapshot viewer exists
+        
+        -- Update the snapshots viewer if it exists (check both old and new methods)
+        if self.updateSnapshotsViewer then 
+            self:updateSnapshotsViewer() 
+        end
+        if self.updateAceGUISnapshotsViewer then 
+            self:updateAceGUISnapshotsViewer() 
+        end
 
         local maxSamples = self.db.profile.maxSamples 
         if not maxSamples or maxSamples < 2 or maxSamples > 10 then maxSamples = defaults.profile.maxSamples end 
@@ -211,7 +218,16 @@ function addon:LevelUp()
         self.db.profile.levelSnapshots = {}
     end
     table.insert(self.db.profile.levelSnapshots, {level = UnitLevel("player"), time = self.timePlayedTotal})
-
+    
+    -- Update snapshots viewer if it exists
+    if self.updateSnapshotsViewer then 
+        self:updateSnapshotsViewer() 
+    end
+    if self.updateAceGUISnapshotsViewer then 
+        self:updateAceGUISnapshotsViewer() 
+    end
+    
+    -- For debugging if needed:
     -- for i, snap in ipairs(self.db.profile.levelSnapshots) do
     --     print(string.format("Level Snapshot %d: {level=%d, time=%0.f}", i, snap.level, snap.time))
     -- end
@@ -253,8 +269,8 @@ function addon:UpdateAction()
     end
 
     -- Trigger the UI update for the stats frame
-    if addonTable and addonTable.UpdateStatsFrameText then
-        addonTable.UpdateStatsFrameText(self)
+    if self.UpdateStatsFrameText then
+        self:UpdateStatsFrameText(self)
     end
 end
 
