@@ -59,7 +59,6 @@ function addon:OnInitialize()
 
     -- Initialize options from options.lua
     addonTable.InitializeOptions(self)
-    
     -- Initialize chat commands from cli.lua
     addonTable.InitializeChatCommands(self)
     -- Initialize snapshot functions from snapshots.lua
@@ -85,6 +84,7 @@ function addon:OnEnable()
     self.lastXP = UnitXP("player") -- Initialize lastXP
     RequestTimePlayed() -- Request initial time played data
     self:UpdateXP() -- This will call UpdateStatsFrameText
+    self:UpdateAction() -- Update action-related stats
     -- Update minimap icon visibility on enable
     if self.UpdateMinimapIconVisibility then
         self:UpdateMinimapIconVisibility(self)
@@ -210,19 +210,56 @@ function addon:LevelUp()
     end
     table.insert(self.db.profile.levelSnapshots, {level = UnitLevel("player"), time = self.timePlayedTotal})
 
-    for i, snap in ipairs(self.db.profile.levelSnapshots) do
-        print(string.format("Level Snapshot %d: {level=%d, time=%0.f}", i, snap.level, snap.time))
-    end
+    -- for i, snap in ipairs(self.db.profile.levelSnapshots) do
+    --     print(string.format("Level Snapshot %d: {level=%d, time=%0.f}", i, snap.level, snap.time))
+    -- end
 
     if self.UpdateStatsFrameText then
         self:UpdateStatsFrameText(self)
     end
 end
 
+function addon:UpdateAction()
+    local L = self.L
+
+    self.mobsToLevelString = L["Actions to Level"] .. ": " .. L["Calculating..."]
+    self.avgXPFormatted = nil
+
+    if self.db.profile.xpSnapshots and #self.db.profile.xpSnapshots > 0 then
+        local totalXpFromSnapshots = 0
+        local numValidSnapshots = 0
+        for _, snap in ipairs(self.db.profile.xpSnapshots) do
+            if snap.xp and snap.xp > 0 then
+                totalXpFromSnapshots = totalXpFromSnapshots + snap.xp
+                numValidSnapshots = numValidSnapshots + 1
+            end
+        end
+        if numValidSnapshots > 0 then
+            local avgXpPerEvent = totalXpFromSnapshots / numValidSnapshots
+            local currentXPValue = UnitXP("player")
+            local maxXPValue = UnitXPMax("player")
+            local xpNeededToLevel = maxXPValue - currentXPValue
+            if xpNeededToLevel > 0 and avgXpPerEvent > 0 then
+                self.actionsToLevelCount = math.ceil(xpNeededToLevel / avgXpPerEvent)
+                self.actionsToLevelAvgXP = avgXpPerEvent
+                self.avgXPFormatted = string.format("%.0f", avgXpPerEvent)
+                self.mobsToLevelString = string.format(L["Actions to Level: %d (avg %s XP)"], self.actionsToLevelCount, self.avgXPFormatted)
+            elseif xpNeededToLevel <= 0 then
+                self.mobsToLevelString = L["Actions to Level"] .. ": " .. L["N/A"]
+            end
+        end
+    end
+
+    -- Trigger the UI update for the stats frame
+    if addonTable and addonTable.UpdateStatsFrameText then
+        addonTable.UpdateStatsFrameText(self)
+    end
+end
+
+
 -- Handler for PLAYER_ENTERING_WORLD
 function addon:OnPlayerEnteringWorld()
     RequestTimePlayed() 
-    self:UpdateXP() 
 end
 
 -- Handler for TIME_PLAYED_MSG
@@ -231,7 +268,9 @@ function addon:OnTimePlayedMessage(event, totalTimeArg, levelTimeArg)
         self.timePlayedTotal = totalTimeArg
         self.timePlayedLevel = levelTimeArg
     end
-    self:UpdateXP() 
+    if self.UpdateStatsFrameText then
+        self:UpdateStatsFrameText(self)
+    end
 end
 
 -- Format seconds into a readable string (hh:mm:ss)
