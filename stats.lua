@@ -146,14 +146,14 @@ local function CreateStatsFrame(addonInstance)
     
     -- Add a border around the bar - using 9.0+ compatible approach
     local border = CreateFrame("Frame", nil, statsFrame.frame, "BackdropTemplate")
-    border:SetPoint("TOPLEFT", xpBar, "TOPLEFT", -1, 1)
-    border:SetPoint("BOTTOMRIGHT", xpBar, "BOTTOMRIGHT", 1, -1)
+    border:SetPoint("TOPLEFT", xpBar, "TOPLEFT", -2, 2)
+    border:SetPoint("BOTTOMRIGHT", xpBar, "BOTTOMRIGHT", 2, -2)
     border:SetBackdrop({
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         edgeSize = 8,
-        insets = {left = 0, right = 0, top = 0, bottom = 0},
+        insets = {left = 1, right = 1, top = 1, bottom = 1},
     })
-    border:SetFrameLevel(statsFrame.frame:GetFrameLevel())
+    border:SetFrameLevel(xpBar:GetFrameLevel() - 1) -- Put border behind the bar
     
     -- Text overlay with improved visibility
     xpBar.text = xpBar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
