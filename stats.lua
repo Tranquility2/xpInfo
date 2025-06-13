@@ -98,12 +98,13 @@ end
 -- Create the AceGUI frame
 local function CreateStatsFrame(addonInstance)
     local L = addonInstance.L
+    local width = 250
     
     -- Create a frame container
     statsFrame = AceGUI:Create("Window")
     statsFrame:SetTitle(L["Progression"])
     statsFrame:SetLayout("Flow")
-    statsFrame:SetWidth(350)
+    statsFrame:SetWidth(width)
     statsFrame:SetHeight(300)
     statsFrame:EnableResize(false)
     
@@ -118,48 +119,25 @@ local function CreateStatsFrame(addonInstance)
         addonInstance.db.profile.showFrame = false
     end)
 
-    -- Create the XP bar container with InlineGroup for better visual styling
-    local progressContainer = AceGUI:Create("InlineGroup")
-    progressContainer:SetFullWidth(true)
-    progressContainer:SetHeight(45)
-    progressContainer:SetLayout("Fill")
-    statsFrame:AddChild(progressContainer)
-    
-    -- We'll use a frame inside the InlineGroup for our actual progress bars
-    local barHolder = CreateFrame("Frame", nil, progressContainer.frame)
-    barHolder:SetPoint("TOPLEFT", progressContainer.frame, 10, -20)
-    barHolder:SetPoint("BOTTOMRIGHT", progressContainer.frame, -10, 10)
-    
-    -- Background frame (gray background)
-    local background = CreateFrame("Frame", nil, barHolder)
-    background:SetPoint("TOPLEFT", barHolder, "TOPLEFT", 0, 0)
-    background:SetPoint("BOTTOMRIGHT", barHolder, "BOTTOMRIGHT", 0, 0)
-    background:SetFrameLevel(barHolder:GetFrameLevel())
-    
-    -- Background texture
-    local bgTexture = background:CreateTexture(nil, "BACKGROUND")
-    bgTexture:SetAllPoints(background)
-    bgTexture:SetTexture("Interface\\TargetingFrame\\UI-StatusBar")
-    bgTexture:SetVertexColor(0.2, 0.2, 0.2, 0.8) -- Dark gray
-    
     -- Main XP bar - using local variable and storing in the statsFrame
-    local xpBar = CreateFrame("StatusBar", nil, background)
-    xpBar:SetPoint("TOPLEFT", background, "TOPLEFT", 0, 0)
-    xpBar:SetPoint("BOTTOMRIGHT", background, "BOTTOMRIGHT", 0, 0)
+    local xpBar = CreateFrame("StatusBar", nil, statsFrame.frame)
+    xpBar:SetHeight(25) -- Define an appropriate height for the XP bar
+    xpBar:SetPoint("TOPLEFT", statsFrame.frame, 15, -35) -- Adjust position without container
+    xpBar:SetPoint("RIGHT", statsFrame.frame, -15, 0)
     xpBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
     -- Blue color that matches WoW's default XP bar but slightly brighter
     xpBar:SetStatusBarColor(0.0, 0.39, 0.88, 1.0) -- Medium blue
     xpBar:SetMinMaxValues(0, 100)
     xpBar:SetValue(0)
-    xpBar:SetFrameLevel(background:GetFrameLevel() + 1)
+    xpBar:SetFrameLevel(statsFrame.frame:GetFrameLevel() + 1)
     
     -- Store the progress bar in the statsFrame for access elsewhere
     statsFrame.xpProgressBar = xpBar
     
     -- Rested XP overlay
-    xpBar.restedBar = CreateFrame("StatusBar", nil, background)
+    xpBar.restedBar = CreateFrame("StatusBar", nil, statsFrame.frame)
     xpBar.restedBar:SetPoint("TOPLEFT", xpBar:GetStatusBarTexture(), "TOPRIGHT", 0, 0)
-    xpBar.restedBar:SetPoint("BOTTOMRIGHT", background, "BOTTOMRIGHT", 0, 0)
+    xpBar.restedBar:SetPoint("BOTTOMRIGHT", xpBar, "BOTTOMRIGHT", 0, 0)
     xpBar.restedBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
     xpBar.restedBar:SetStatusBarColor(0.6, 0, 0.6, 0.6) -- Purple slightly more opaque
     xpBar.restedBar:SetMinMaxValues(0, 100)
@@ -167,15 +145,15 @@ local function CreateStatsFrame(addonInstance)
     xpBar.restedBar:SetFrameLevel(xpBar:GetFrameLevel())
     
     -- Add a border around the bar - using 9.0+ compatible approach
-    local border = CreateFrame("Frame", nil, background, "BackdropTemplate")
-    border:SetPoint("TOPLEFT", background, "TOPLEFT", -1, 1)
-    border:SetPoint("BOTTOMRIGHT", background, "BOTTOMRIGHT", 1, -1)
+    local border = CreateFrame("Frame", nil, statsFrame.frame, "BackdropTemplate")
+    border:SetPoint("TOPLEFT", xpBar, "TOPLEFT", -1, 1)
+    border:SetPoint("BOTTOMRIGHT", xpBar, "BOTTOMRIGHT", 1, -1)
     border:SetBackdrop({
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         edgeSize = 8,
         insets = {left = 0, right = 0, top = 0, bottom = 0},
     })
-    border:SetFrameLevel(background:GetFrameLevel() - 1)
+    border:SetFrameLevel(statsFrame.frame:GetFrameLevel())
     
     -- Text overlay with improved visibility
     xpBar.text = xpBar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -205,13 +183,13 @@ local function CreateStatsFrame(addonInstance)
         if restedXP > 0 then
             GameTooltip:AddDoubleLine(L["Rested XP"] .. ":", string.format("%s (%0.1f%%)", 
                 restedXP, restedXPPerc), 1, 1, 1, 0.6, 0, 0.6)
-            GameTooltip:AddDoubleLine(L["After Rested"] .. ":", string.format("%0.1f%%", 
-                math.min(100, currentXPPerc + restedXPPerc)), 1, 1, 1, 0.6, 0.6, 1)
+            -- GameTooltip:AddDoubleLine(L["After Rested"] .. ":", string.format("%0.1f%%", 
+            --     math.min(100, currentXPPerc + restedXPPerc)), 1, 1, 1, 0.6, 0.6, 1)
         end
         
         if addonInstance.timeToLevel and addonInstance.timeToLevel ~= L["Calculating..."] and addonInstance.timeToLevel ~= L["N/A"] then
             GameTooltip:AddLine(" ")
-            GameTooltip:AddDoubleLine(L["Time to Level"] .. ":", addonInstance.timeToLevel, 1, 1, 1, 0, 1, 0)
+            GameTooltip:AddDoubleLine(L["Time to Level"] .. ":", addonInstance.timeToLevel, 1, 1, 1, 0.6, 0.6, 1)
         end
         
         if addonInstance.actionsToLevelCount and addonInstance.actionsToLevelAvgXP then
@@ -225,7 +203,14 @@ local function CreateStatsFrame(addonInstance)
     xpBar:SetScript("OnLeave", function()
         GameTooltip:Hide()
     end)
-    
+
+    -- Add some tripple space before the first heading
+    for i = 1, 3 do
+        local spacer = AceGUI:Create("Label")
+        spacer:SetWidth(width - 25) -- Adjust width to match the frame
+        spacer:SetText(" ")
+        statsFrame:AddChild(spacer)
+    end
     
     local xpHeader = AceGUI:Create("Heading")
     xpHeader:SetText(L["XP Progress"])
@@ -234,7 +219,7 @@ local function CreateStatsFrame(addonInstance)
 
     -- XP Information Label
     xpLabel = AceGUI:Create("Label")
-    xpLabel:SetWidth(325)
+    xpLabel:SetWidth(width - 25)
     xpLabel:SetText(L["Current XP"] .. ": 0 / 0 (0%)\n" .. L["Rested XP"] .. ": 0 / 0 (0%)")
     statsFrame:AddChild(xpLabel)
 
@@ -245,13 +230,13 @@ local function CreateStatsFrame(addonInstance)
     
     -- Time to level label
     remainingLabel = AceGUI:Create("Label")
-    remainingLabel:SetWidth(325)
+    remainingLabel:SetWidth(width - 25)
     remainingLabel:SetText(L["Time to Level"] .. ": " .. L["Calculating..."])
     statsFrame:AddChild(remainingLabel)
     
     -- Actions to level label
     actionsLabel = AceGUI:Create("Label")
-    actionsLabel:SetWidth(325)
+    actionsLabel:SetWidth(width - 25)
     actionsLabel:SetText(L["Actions to Level"] .. ": " .. L["Calculating..."])
     statsFrame:AddChild(actionsLabel)
     
@@ -262,20 +247,20 @@ local function CreateStatsFrame(addonInstance)
 
     -- Time played label
     timeLabel = AceGUI:Create("Label")
-    timeLabel:SetWidth(325)
+    timeLabel:SetWidth(width - 25)
     timeLabel:SetText(L["Time Played (Total)"] .. ": 00:00:00\n" .. L["Time Played (Level)"] .. ": 00:00:00")
     statsFrame:AddChild(timeLabel)
     
     -- Add some space before buttons
     local spacer = AceGUI:Create("Label")
-    spacer:SetWidth(325)
+    spacer:SetWidth(width - 25)
     spacer:SetText(" ")
     statsFrame:AddChild(spacer)
     
     -- Button group container
     local buttonGroup = AceGUI:Create("SimpleGroup")
     buttonGroup:SetLayout("Flow")
-    buttonGroup:SetWidth(325)
+    buttonGroup:SetWidth(width - 25)
     buttonGroup:SetHeight(30)
     statsFrame:AddChild(buttonGroup)
     
