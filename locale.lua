@@ -43,6 +43,9 @@ L["XP"] = "XP"
 L["Time"] = "Time"
 L["No level snapshots recorded."] = "No level snapshots recorded. Gain some levels to see data here."
 L["XP Snapshots for Levels"] = "XP Snapshots for Levels"
+L["recorded"] = "recorded"
+L["Level"] = "Level"
+L["Time Played"] = "Time Played"
 
 -- Strings for options
 L["Reset Data"] = "Reset Data"

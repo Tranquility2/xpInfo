@@ -28,7 +28,7 @@ local function snapshotsReport(addonInstance)
         lines[#lines + 1] = L["No level snapshots recorded."]
     else
         title = L["XP Snapshots for Levels"]
-        lines[#lines + 1] = title .. " (" .. #levelSnapshots .. " " .. L["recorded"] .. "):" -- Added L["recorded"]
+        lines[#lines + 1] = title .. " (" .. #levelSnapshots .. " " .. L["recorded"] .. "):"
         for i, snap in ipairs(levelSnapshots) do
             -- Assuming snap.time is totalTimePlayed from LevelUp, format it if addonInstance.FormatTime exists
             local timeString = snap.time

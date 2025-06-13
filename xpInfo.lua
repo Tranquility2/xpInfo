@@ -190,6 +190,8 @@ function addon:UpdateXP()
     if self.UpdateStatsFrameText then
         self:UpdateStatsFrameText(self)
     end
+
+    self:UpdateAction()
 end
 
 -- Handle level up event
