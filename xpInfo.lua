@@ -2,13 +2,13 @@ local addonName, addonTable = ...
 local addon = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0", "AceEvent-3.0")
 
 -- Localization: L will be populated by locale.lua
-local L = LibStub("AceLocale-3.0"):GetLocale(addonName)
-
--- Default database values
+local L = LibStub("AceLocale-3.0"):GetLocale(addonName)    -- Default database values
 local defaults = {
     profile = {
         showFrame = true,
         framePosition = { "CENTER", UIParent, "CENTER", 0, 0 },
+        showXpBar = true,
+        xpBarPosition = { "CENTER", UIParent, "CENTER", 0, -100 },
         xpSnapshots = {},
         maxSamples = 5,
         showMinimapIcon = true, 
@@ -68,6 +68,14 @@ function addon:OnInitialize()
     self.HideStatsFrame = addonTable.HideAceGUIStatsFrame
     self.SetStatsFrameVisibility = addonTable.SetAceGUIStatsFrameVisibility -- For options
     
+    -- Use XP Bar functions
+    self.CreateXpBarFrame = addonTable.CreateXpBarFrame
+    self.UpdateXpBarFrame = addonTable.UpdateXpBarFrame
+    self.ToggleXpBarFrame = addonTable.ToggleXpBarFrame
+    self.ShowXpBarFrame = addonTable.ShowXpBarFrame
+    self.HideXpBarFrame = addonTable.HideXpBarFrame
+    self.SetXpBarFrameVisibility = addonTable.SetXpBarFrameVisibility
+    
     -- Use AceGUI snapshots viewer
     self.snapshotsViewerBuidler = self.snapshotsAceGUIViewerBuilder -- Fix the typo in the original function name
     
@@ -78,9 +86,16 @@ end
 
 -- Called when the addon is enabled
 function addon:OnEnable()
+    -- Show the stats frame if enabled
     if self.db.profile.showFrame and self.ShowStatsFrame then
         self:ShowStatsFrame(self) -- Pass self as addonInstance
     end
+    
+    -- Show the standalone XP bar if enabled
+    if self.db.profile.showXpBar then
+        addonTable.ShowXpBarFrame(self)
+    end
+    
     self.lastXP = UnitXP("player") -- Initialize lastXP
     RequestTimePlayed() -- Request initial time played data
     self:UpdateXP() -- This will call UpdateStatsFrameText
@@ -268,9 +283,14 @@ function addon:UpdateAction()
         end
     end
 
-    -- Trigger the UI update for the stats frame
+    -- Trigger UI updates
     if self.UpdateStatsFrameText then
         self:UpdateStatsFrameText(self)
+    end
+    
+    -- Also update the standalone XP bar if it exists
+    if self.UpdateXpBarFrame then
+        self:UpdateXpBarFrame(self)
     end
 end
 

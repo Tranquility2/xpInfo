@@ -4,19 +4,7 @@ local addonName, addonTable = ...
 local AceGUI = LibStub("AceGUI-3.0")
 local statsFrame, xpLabel, timeLabel, remainingLabel
 local refreshButton, settingsButton, debugButton
-
--- Helper function to format large numbers (e.g., 1000 -> 1k, 1000000 -> 1M)
-local function FormatLargeNumber(num)
-    if num >= 1000000 then
-        return string.format("%.1fM", num / 1000000)
-    elseif num >= 10000 then
-        return string.format("%.1fk", num / 1000)
-    elseif num >= 1000 then
-        return string.format("%.1fk", num / 1000)
-    else
-        return tostring(num)
-    end
-end
+avgXpLabel = nil -- Define globally to avoid nil errors
 
 -- Function to update the content of the frame
 local function UpdateStatsFrameText(addonInstance)
@@ -30,7 +18,6 @@ local function UpdateStatsFrameText(addonInstance)
     local currentXPPerc = 0
     local restedXPPerc = 0
 
-
     if maxXP > 0 then
         currentXPPerc = (currentXP / maxXP) * 100
         restedXPPerc = (restedXP / maxXP) * 100
@@ -41,42 +28,8 @@ local function UpdateStatsFrameText(addonInstance)
                                    restedXP, maxXP, string.format("%.1f", restedXPPerc))
     xpLabel:SetText(xpString)
 
-    -- Update progress bar if it exists
-    if statsFrame.xpProgressBar then
-        local xpBar = statsFrame.xpProgressBar
-        xpBar:SetValue(currentXPPerc)
-        
-        -- Better format for the text display - show percentage and remaining XP
-        if xpBar.text then
-            -- Format large numbers with commas for better readability
-            local function FormatNumber(num)
-                if num >= 1000 then
-                    return string.format("%s", FormatLargeNumber(num))
-                else
-                    return tostring(num)
-                end
-            end
-            
-            local formattedPercent = string.format("%.1f%%", currentXPPerc)
-            local formattedRemaining = FormatNumber(maxXP - currentXP)
-            
-            xpBar.text:SetText(string.format("%s (%s %s)", 
-                formattedPercent, formattedRemaining, L["remaining"]))
-        end
-        
-        -- Update rested bonus display if it exists
-        if xpBar.restedBar then
-            local restedWidth = 0
-            if currentXPPerc < 100 then
-                -- Set the width based on where the current XP ends
-                restedWidth = math.min(restedXPPerc, 100 - currentXPPerc)
-                xpBar.restedBar:SetValue(restedWidth)
-            else
-                -- At max XP, don't show rested bonus
-                xpBar.restedBar:SetValue(0)
-            end
-        end
-    end
+    -- Update XP bar if the frame is showing
+    addonTable.UpdateXpBarFrame(addonInstance)
 
     -- Time Information
     local timePlayedTotalString = addonInstance:FormatTime(addonInstance.timePlayedTotal or 0)
@@ -150,92 +103,8 @@ local function CreateStatsFrame(addonInstance)
         end)
     end
 
-    -- Main XP bar - using local variable and storing in the statsFrame
-    local xpBar = CreateFrame("StatusBar", nil, statsFrame.frame)
-    xpBar:SetHeight(25) -- Define an appropriate height for the XP bar
-    xpBar:SetPoint("TOPLEFT", statsFrame.frame, 15, -35) -- Adjust position without container
-    xpBar:SetPoint("RIGHT", statsFrame.frame, -15, 0)
-    xpBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
-    -- Blue color that matches WoW's default XP bar but slightly brighter
-    xpBar:SetStatusBarColor(0.0, 0.39, 0.88, 1.0) -- Medium blue
-    xpBar:SetMinMaxValues(0, 100)
-    xpBar:SetValue(0)
-    xpBar:SetFrameLevel(statsFrame.frame:GetFrameLevel() + 1)
-    
-    -- Store the progress bar in the statsFrame for access elsewhere
-    statsFrame.xpProgressBar = xpBar
-    
-    -- Rested XP overlay
-    xpBar.restedBar = CreateFrame("StatusBar", nil, statsFrame.frame)
-    xpBar.restedBar:SetPoint("TOPLEFT", xpBar:GetStatusBarTexture(), "TOPRIGHT", 0, 0)
-    xpBar.restedBar:SetPoint("BOTTOMRIGHT", xpBar, "BOTTOMRIGHT", 0, 0)
-    xpBar.restedBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
-    xpBar.restedBar:SetStatusBarColor(0.6, 0, 0.6, 0.6) -- Purple slightly more opaque
-    xpBar.restedBar:SetMinMaxValues(0, 100)
-    xpBar.restedBar:SetValue(0)
-    xpBar.restedBar:SetFrameLevel(xpBar:GetFrameLevel())
-    
-    -- Add a border around the bar - using 9.0+ compatible approach
-    local border = CreateFrame("Frame", nil, statsFrame.frame, "BackdropTemplate")
-    border:SetPoint("TOPLEFT", xpBar, "TOPLEFT", -2, 2)
-    border:SetPoint("BOTTOMRIGHT", xpBar, "BOTTOMRIGHT", 2, -2)
-    border:SetBackdrop({
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        edgeSize = 8,
-        insets = {left = 1, right = 1, top = 1, bottom = 1},
-    })
-    border:SetFrameLevel(xpBar:GetFrameLevel() - 1) -- Put border behind the bar
-    
-    -- Text overlay with improved visibility
-    xpBar.text = xpBar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    xpBar.text:SetPoint("CENTER", xpBar, "CENTER", 0, 0)
-    xpBar.text:SetText("0%")
-    xpBar.text:SetTextColor(1, 1, 1, 1) -- Bright white text
-    xpBar.text:SetShadowOffset(1, -1)   -- Text shadow for better readability
-    xpBar.text:SetShadowColor(0, 0, 0, 1)
-    
-    -- Add tooltip functionality
-    xpBar:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
-        GameTooltip:ClearLines()
-        
-        local currentXP = UnitXP("player")
-        local maxXP = UnitXPMax("player")
-        local restedXP = GetXPExhaustion() or 0
-        local currentXPPerc = maxXP > 0 and (currentXP / maxXP) * 100 or 0
-        local restedXPPerc = maxXP > 0 and (restedXP / maxXP) * 100 or 0
-        local L = addonInstance.L
-        
-        -- GameTooltip:AddLine(L["Progress"], 1, 1, 1)
-        -- GameTooltip:AddLine(" ")
-        GameTooltip:AddDoubleLine(L["Current XP"] .. ":", string.format("%s / %s (%0.1f%%)", 
-            currentXP, maxXP, currentXPPerc), 1, 1, 1, 1, 1, 1)
-        
-        if restedXP > 0 then
-            GameTooltip:AddDoubleLine(L["Rested XP"] .. ":", string.format("%s (%0.1f%%)", 
-                restedXP, restedXPPerc), 1, 1, 1, 0.6, 0, 0.6)
-            -- GameTooltip:AddDoubleLine(L["After Rested"] .. ":", string.format("%0.1f%%", 
-            --     math.min(100, currentXPPerc + restedXPPerc)), 1, 1, 1, 0.6, 0.6, 1)
-        end
-        
-        if addonInstance.actionsToLevelAvgXP then
-            GameTooltip:AddDoubleLine(L["Average XP"] .. ":", string.format("%d", addonInstance.actionsToLevelAvgXP), 1, 1, 1, 0, 0.6, 0.6)
-        end
-
-        if addonInstance.actionsToLevelCount then
-            GameTooltip:AddDoubleLine(L["Actions to Level"] .. ":", string.format("%d", addonInstance.actionsToLevelCount), 1, 1, 1, 0, 1, 0)
-        end
-
-        if addonInstance.timeToLevel and addonInstance.timeToLevel ~= L["Calculating..."] and addonInstance.timeToLevel ~= L["N/A"] then
-            GameTooltip:AddDoubleLine(L["Time to Level"] .. ":", addonInstance.timeToLevel, 1, 1, 1, 0.6, 0.6, 1)
-        end
-        
-        GameTooltip:Show()
-    end)
-    
-    xpBar:SetScript("OnLeave", function()
-        GameTooltip:Hide()
-    end)
+    -- Create an XP bar when the stats frame is created
+    addonTable.ShowXpBarFrame(addonInstance)
 
     -- Add some tripple space before the first heading
     for i = 1, 3 do
@@ -333,6 +202,8 @@ local function ToggleStatsFrame(addonInstance)
     if statsFrame and statsFrame:IsShown() then
         statsFrame:Hide()
         addonInstance.db.profile.showFrame = false
+        -- Also hide the XP bar if the main frame is hidden
+        addonTable.HideXpBarFrame(addonInstance)
     else
         if not statsFrame then
             CreateStatsFrame(addonInstance)
@@ -340,6 +211,8 @@ local function ToggleStatsFrame(addonInstance)
         statsFrame:Show()
         addonInstance.db.profile.showFrame = true
         UpdateStatsFrameText(addonInstance)
+        -- Show the XP bar when the main frame is shown
+        addonTable.ShowXpBarFrame(addonInstance)
     end
 end
 
@@ -351,6 +224,8 @@ local function ShowStatsFrame(addonInstance)
     statsFrame:Show()
     addonInstance.db.profile.showFrame = true
     UpdateStatsFrameText(addonInstance)
+    -- Show the XP bar when the main frame is shown
+    addonTable.ShowXpBarFrame(addonInstance)
 end
 
 -- Explicitly hide the frame
@@ -358,6 +233,8 @@ local function HideStatsFrame(addonInstance)
     if statsFrame then
         statsFrame:Hide()
         addonInstance.db.profile.showFrame = false
+        -- Also hide the XP bar if the main frame is hidden
+        addonTable.HideXpBarFrame(addonInstance)
     end
 end
 
@@ -368,6 +245,9 @@ local function SetStatsFrameVisibility(addonInstance, shouldShow)
     else
         HideStatsFrame(addonInstance)
     end
+    
+    -- Also set the XP bar visibility to match
+    addonTable.SetXpBarFrameVisibility(addonInstance, shouldShow)
 end
 
 -- Export functions to the addon table

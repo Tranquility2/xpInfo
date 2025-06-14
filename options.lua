@@ -19,12 +19,23 @@ function addonTable.InitializeOptions(addonInstance)
             showFrame = {
                 type = "toggle",
                 order = 20, 
-                name = L["Show Frame"],
+                name = L["Show Stats Frame"],
                 desc = L["Toggle the visibility of the player progression frame."],
                 get = function() return db.profile.showFrame end,
                 set = function(_, value)
                     db.profile.showFrame = value
                     addonTable.SetAceGUIStatsFrameVisibility(addonInstance, value)
+                end,
+            },
+            showXpBar = {
+                type = "toggle",
+                order = 22, 
+                name = L["Show XP Bar"],
+                desc = L["Toggle the visibility of the standalone XP bar."],
+                get = function() return db.profile.showXpBar end,
+                set = function(_, value)
+                    db.profile.showXpBar = value
+                    addonTable.SetXpBarFrameVisibility(addonInstance, value)
                 end,
             },
             showMinimapIcon = {

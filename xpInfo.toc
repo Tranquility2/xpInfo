@@ -14,5 +14,6 @@ options.lua
 cli.lua
 snapshots.lua
 minimap.lua
+xpBar.lua
 stats.lua
 xpInfo.lua

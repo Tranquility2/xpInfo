@@ -38,6 +38,14 @@ L["Level Progress"] = "Level Progress"
 L["Summary"] = "Summary"
 L["Average XP"] = "Average XP"
 
+-- XP Bar Strings
+L["Show XP Bar"] = "Show XP Bar"
+L["Toggle the visibility of the standalone XP bar."] = "Toggle the visibility of the standalone XP bar."
+L["XP Bar position reset."] = "XP Bar position reset."
+L["Usage: /xpi [show|hide|toggle|reset|config] [xpbar]"] = "Usage: /xpi [show|hide|toggle|reset|config] [xpbar]"
+L["Show Stats Frame"] = "Show Stats Frame"
+L["remaining"] = "remaining"
+
 -- Strings for Snapshot Viewer
 L["Snapshots Viewer"] = "Snapshots Viewer"
 L["Close"] = "Close"
