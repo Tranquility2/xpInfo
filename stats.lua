@@ -181,8 +181,8 @@ local function CreateStatsFrame(addonInstance)
         local restedXPPerc = maxXP > 0 and (restedXP / maxXP) * 100 or 0
         local L = addonInstance.L
         
-        GameTooltip:AddLine(L["XP Progress"], 1, 1, 1)
-        GameTooltip:AddLine(" ")
+        -- GameTooltip:AddLine(L["Progress"], 1, 1, 1)
+        -- GameTooltip:AddLine(" ")
         GameTooltip:AddDoubleLine(L["Current XP"] .. ":", string.format("%s / %s (%0.1f%%)", 
             currentXP, maxXP, currentXPPerc), 1, 1, 1, 1, 1, 1)
         
@@ -195,16 +195,14 @@ local function CreateStatsFrame(addonInstance)
         
         if addonInstance.actionsToLevelAvgXP then
             GameTooltip:AddDoubleLine(L["Average XP"] .. ":", string.format("%d", addonInstance.actionsToLevelAvgXP), 1, 1, 1, 0, 0.6, 0.6)
-            GameTooltip:AddLine(" ")
+        end
+
+        if addonInstance.actionsToLevelCount then
+            GameTooltip:AddDoubleLine(L["Actions to Level"] .. ":", string.format("%d", addonInstance.actionsToLevelCount), 1, 1, 1, 0, 1, 0)
         end
 
         if addonInstance.timeToLevel and addonInstance.timeToLevel ~= L["Calculating..."] and addonInstance.timeToLevel ~= L["N/A"] then
             GameTooltip:AddDoubleLine(L["Time to Level"] .. ":", addonInstance.timeToLevel, 1, 1, 1, 0.6, 0.6, 1)
-        end
-
-
-        if addonInstance.actionsToLevelCount then
-            GameTooltip:AddDoubleLine(L["Actions to Level"] .. ":", string.format("%d", addonInstance.actionsToLevelCount), 1, 1, 1, 0, 1, 0)
         end
         
         GameTooltip:Show()
