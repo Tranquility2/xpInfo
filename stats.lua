@@ -118,11 +118,37 @@ local function CreateStatsFrame(addonInstance)
         local pos = addonInstance.db.profile.framePosition
         statsFrame:SetPoint(pos[1], pos[2], pos[3], pos[4], pos[5])
     end
+
+    -- Restore visibility state
+    if addonInstance.db.profile.showFrame then
+        statsFrame:Show()
+    else
+        statsFrame:Hide()
+    end
     
     -- Save position on close
     statsFrame:SetCallback("OnClose", function(widget)
+        -- Save position before closing
+        local frame = widget.frame
+        local point, relativeTo, relativePoint, xOfs, yOfs = frame:GetPoint(1)
+        local relativeToName = relativeTo and (relativeTo:GetName() or "UIParent") or "UIParent"
+        addonInstance.db.profile.framePosition = { point, relativeToName, relativePoint, xOfs, yOfs }
         addonInstance.db.profile.showFrame = false
     end)
+    
+    -- Hook into the frame's title bar to save position when dragging ends
+    if statsFrame.title then
+        local originalScript = statsFrame.title:GetScript("OnMouseUp")
+        statsFrame.title:SetScript("OnMouseUp", function(self, ...)
+            if originalScript then originalScript(self, ...) end
+            
+            -- Save position after dragging
+            local frame = statsFrame.frame
+            local point, relativeTo, relativePoint, xOfs, yOfs = frame:GetPoint(1)
+            local relativeToName = relativeTo and (relativeTo:GetName() or "UIParent") or "UIParent"
+            addonInstance.db.profile.framePosition = { point, relativeToName, relativePoint, xOfs, yOfs }
+        end)
+    end
 
     -- Main XP bar - using local variable and storing in the statsFrame
     local xpBar = CreateFrame("StatusBar", nil, statsFrame.frame)
