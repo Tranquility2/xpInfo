@@ -2,7 +2,7 @@ local addonName, addonTable = ...
 
 -- Local variables to hold UI elements
 local AceGUI = LibStub("AceGUI-3.0")
-local statsFrame, xpLabel, timeLabel, remainingLabel, actionsLabel, avgXpLabel
+local statsFrame, xpLabel, timeLabel, remainingLabel
 local refreshButton, settingsButton, debugButton
 
 -- Helper function to format large numbers (e.g., 1000 -> 1k, 1000000 -> 1M)
@@ -86,19 +86,18 @@ local function UpdateStatsFrameText(addonInstance)
                                    timePlayedTotalString, timePlayedLevelString)
     timeLabel:SetText(timeString)
 
-    -- Avrage XP per action
+    -- Combine all level progression info into a single label
     local actionsToLevelAvgXP = addonInstance.actionsToLevelAvgXP or L["Calculating..."]
-    local avgXpString = string.format(L["Average XP"] .. ": %s", actionsToLevelAvgXP)
-    avgXpLabel:SetText(avgXpString)
-
-    -- Remaining time info
     local timeToLevelString = addonInstance.timeToLevel or L["Calculating..."]
-    local remainingString = string.format(L["Time to Level"] .. ": %s", timeToLevelString)
-    remainingLabel:SetText(remainingString)
-
-    -- Actions to Level
-    local mobsToLevelString = addonInstance.mobsToLevelString or (L["Actions to Level"] .. ": " .. L["Calculating..."])
-    actionsLabel:SetText(mobsToLevelString)
+    local actionsToLevelCount = addonInstance.actionsToLevelCount or L["Calculating..."]
+    
+    local combinedString = string.format(
+        L["Average XP"] .. ": %s\n" .. 
+        L["Actions to Level"] .. ": %s\n" .. 
+        L["Time to Level"] .. ": %s", 
+        actionsToLevelAvgXP, actionsToLevelCount, timeToLevelString)
+    
+    remainingLabel:SetText(combinedString)
 end
 
 -- Create the AceGUI frame
@@ -111,7 +110,7 @@ local function CreateStatsFrame(addonInstance)
     statsFrame:SetTitle(L["Progression"])
     statsFrame:SetLayout("Flow")
     statsFrame:SetWidth(width)
-    statsFrame:SetHeight(315)
+    statsFrame:SetHeight(320)
     statsFrame:EnableResize(false)
     
     -- Restore saved position if available
@@ -236,22 +235,14 @@ local function CreateStatsFrame(addonInstance)
     levelHeader:SetFullWidth(true)
     statsFrame:AddChild(levelHeader)
 
-    -- Average XP per action label
-    avgXpLabel = AceGUI:Create("Label")
-    avgXpLabel:SetWidth(width - 25)
-    avgXpLabel:SetText(L["Average XP"] .. ": " .. L["Calculating..."])
-    statsFrame:AddChild(avgXpLabel)
-    
-    -- Actions to level label
-    actionsLabel = AceGUI:Create("Label")
-    actionsLabel:SetWidth(width - 25)
-    actionsLabel:SetText(L["Actions to Level"] .. ": " .. L["Calculating..."])
-    statsFrame:AddChild(actionsLabel)
-    
-    -- Time to level label
+    -- Combined progression label (XP, Actions, Time)
     remainingLabel = AceGUI:Create("Label")
     remainingLabel:SetWidth(width - 25)
-    remainingLabel:SetText(L["Time to Level"] .. ": " .. L["Calculating..."])
+    remainingLabel:SetText(
+        L["Average XP"] .. ": " .. L["Calculating..."] .. "\n" ..
+        L["Actions to Level"] .. ": " .. L["Calculating..."] .. "\n" ..
+        L["Time to Level"] .. ": " .. L["Calculating..."]
+    )
     statsFrame:AddChild(remainingLabel)
     
     local sumHeader = AceGUI:Create("Heading")
