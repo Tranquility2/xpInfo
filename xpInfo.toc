@@ -15,5 +15,6 @@ cli.lua
 snapshots.lua
 minimap.lua
 xpBar.lua
+levelGraph.lua
 stats.lua
 xpInfo.lua

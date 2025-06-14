@@ -38,6 +38,21 @@ function addonTable.InitializeOptions(addonInstance)
                     addonTable.SetXpBarFrameVisibility(addonInstance, value)
                 end,
             },
+            showLevelGraph = {
+                type = "toggle",
+                order = 23, 
+                name = L["Show Level Graph"],
+                desc = L["Toggle the visibility of the level progression graph."],
+                get = function() return db.profile.showLevelGraph end,
+                set = function(_, value)
+                    db.profile.showLevelGraph = value
+                    if value then
+                        addonInstance:ShowLevelGraph(addonInstance)
+                    else
+                        addonInstance:HideLevelGraph(addonInstance)
+                    end
+                end,
+            },
             showMinimapIcon = {
                 type = "toggle",
                 order = 25, -- Place it after Show Frame

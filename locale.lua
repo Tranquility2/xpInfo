@@ -58,6 +58,13 @@ L["Above"] = "Above"
 L["Left"] = "Left"
 L["Right"] = "Right"
 L["Follow Cursor"] = "Follow Cursor"
+
+-- Level Graph Settings
+L["Level Progression"] = "Level Progression"
+L["Show Level Graph"] = "Show Level Graph"
+L["Toggle the visibility of the level progression graph."] = "Toggle the visibility of the level progression graph."
+L["Time Played (Hours)"] = "Time Played (Hours)"
+L["Character Level"] = "Character Level"
 L["No XP snapshots currently recorded."] = "No XP snapshots currently recorded. Gain some XP to see data here."
 L["XP Snapshots (%d of %d max)"] = "XP Snapshots (%d of %d max shown):"
 L["XP"] = "XP"

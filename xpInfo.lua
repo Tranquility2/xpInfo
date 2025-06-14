@@ -14,6 +14,8 @@ local defaults = {
         maxSamples = 5,
         showMinimapIcon = true, 
         tooltipAnchor = "ANCHOR_BOTTOM",
+        showLevelGraph = true, -- Default to showing the level graph
+        levelGraphPosition = { "CENTER", UIParent, "CENTER", 200, 0 },
         levelSnapshots = {}
     }
 }
@@ -77,6 +79,13 @@ function addon:OnInitialize()
     self.HideXpBarFrame = addonTable.HideXpBarFrame
     self.SetXpBarFrameVisibility = addonTable.SetXpBarFrameVisibility
     
+    -- Use Level Graph functions
+    self.CreateLevelGraphFrame = addonTable.CreateLevelGraphFrame
+    self.UpdateLevelGraph = addonTable.UpdateLevelGraph
+    self.ToggleLevelGraph = addonTable.ToggleLevelGraph
+    self.ShowLevelGraph = addonTable.ShowLevelGraph
+    self.HideLevelGraph = addonTable.HideLevelGraph
+    
     -- Use AceGUI snapshots viewer
     self.snapshotsViewerBuidler = self.snapshotsAceGUIViewerBuilder -- Fix the typo in the original function name
     
@@ -95,6 +104,11 @@ function addon:OnEnable()
     -- Show the standalone XP bar if enabled
     if self.db.profile.showXpBar then
         addonTable.ShowXpBarFrame(self)
+    end
+    
+    -- Show the level progression graph if enabled
+    if self.db.profile.showLevelGraph then
+        addonTable.ShowLevelGraph(self)
     end
     
     self.lastXP = UnitXP("player") -- Initialize lastXP
@@ -243,6 +257,11 @@ function addon:LevelUp()
         self:updateAceGUISnapshotsViewer() 
     end
     
+    -- Update the level graph with the new level data
+    if self.UpdateLevelGraph then
+        self:UpdateLevelGraph(self)
+    end
+    
     -- For debugging if needed:
     -- for i, snap in ipairs(self.db.profile.levelSnapshots) do
     --     print(string.format("Level Snapshot %d: {level=%d, time=%0.f}", i, snap.level, snap.time))
@@ -309,6 +328,9 @@ function addon:OnTimePlayedMessage(event, totalTimeArg, levelTimeArg)
     end
     if self.UpdateStatsFrameText then
         self:UpdateStatsFrameText(self)
+    end
+    if self.UpdateLevelGraph then
+        self:UpdateLevelGraph(self)
     end
 end
 
