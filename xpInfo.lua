@@ -13,6 +13,7 @@ local defaults = {
         xpSnapshots = {},
         maxSamples = 5,
         showMinimapIcon = true, 
+        tooltipAnchor = "ANCHOR_BOTTOM",
         levelSnapshots = {}
     }
 }

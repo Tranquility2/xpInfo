@@ -49,6 +49,15 @@ L["remaining"] = "remaining"
 -- Strings for Snapshot Viewer
 L["Snapshots Viewer"] = "Snapshots Viewer"
 L["Close"] = "Close"
+
+-- Tooltip Position Settings
+L["Tooltip Position"] = "Tooltip Position"
+L["Choose where the tooltip should appear relative to the XP bar"] = "Choose where the tooltip should appear relative to the XP bar"
+L["Below"] = "Below"
+L["Above"] = "Above"
+L["Left"] = "Left"
+L["Right"] = "Right"
+L["Follow Cursor"] = "Follow Cursor"
 L["No XP snapshots currently recorded."] = "No XP snapshots currently recorded. Gain some XP to see data here."
 L["XP Snapshots (%d of %d max)"] = "XP Snapshots (%d of %d max shown):"
 L["XP"] = "XP"

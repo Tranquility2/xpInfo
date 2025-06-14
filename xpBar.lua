@@ -100,7 +100,7 @@ local function CreateXpBarFrame(addonInstance)
     
     -- Add tooltip functionality
     xpBarFrame:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
+        GameTooltip:SetOwner(self, addonInstance.db.profile.tooltipAnchor)
         GameTooltip:ClearLines()
         
         local currentXP = UnitXP("player")

@@ -72,6 +72,24 @@ function addonTable.InitializeOptions(addonInstance)
                     if addonInstance.UpdateXP then addonInstance:UpdateXP() end
                 end,
             },
+            tooltipAnchor = {
+                type = "select",
+                order = 35,
+                name = L["Tooltip Position"] or "Tooltip Position",
+                desc = L["Choose where the tooltip should appear relative to the XP bar"] or "Choose where the tooltip should appear relative to the XP bar",
+                values = {
+                    ["ANCHOR_BOTTOM"] = L["Below"] or "Below",
+                    ["ANCHOR_TOP"] = L["Above"] or "Above", 
+                    ["ANCHOR_LEFT"] = L["Left"] or "Left",
+                    ["ANCHOR_RIGHT"] = L["Right"] or "Right",
+                    ["ANCHOR_CURSOR"] = L["Follow Cursor"] or "Follow Cursor"
+                },
+                get = function() return db.profile.tooltipAnchor end,
+                set = function(_, value)
+                    db.profile.tooltipAnchor = value
+                    -- No immediate update needed as the setting will be used the next time tooltip shows
+                end,
+            },
             profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(db)
         },
     }
