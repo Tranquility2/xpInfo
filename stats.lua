@@ -2,7 +2,7 @@ local addonName, addonTable = ...
 
 -- Local variables to hold UI elements
 local AceGUI = LibStub("AceGUI-3.0")
-local statsFrame, xpLabel, timeLabel, remainingLabel, actionsLabel
+local statsFrame, xpLabel, timeLabel, remainingLabel, actionsLabel, avgXpLabel
 local refreshButton, settingsButton, debugButton
 
 -- Helper function to format large numbers (e.g., 1000 -> 1k, 1000000 -> 1M)
@@ -29,6 +29,7 @@ local function UpdateStatsFrameText(addonInstance)
     local restedXP = GetXPExhaustion() or 0
     local currentXPPerc = 0
     local restedXPPerc = 0
+
 
     if maxXP > 0 then
         currentXPPerc = (currentXP / maxXP) * 100
@@ -84,6 +85,11 @@ local function UpdateStatsFrameText(addonInstance)
     local timeString = string.format(L["Time Played (Total)"] .. ": %s\n" .. L["Time Played (Level)"] .. ": %s", 
                                    timePlayedTotalString, timePlayedLevelString)
     timeLabel:SetText(timeString)
+
+    -- Avrage XP per action
+    local actionsToLevelAvgXP = addonInstance.actionsToLevelAvgXP or L["Calculating..."]
+    local avgXpString = string.format(L["Average XP"] .. ": %s", actionsToLevelAvgXP)
+    avgXpLabel:SetText(avgXpString)
 
     -- Remaining time info
     local timeToLevelString = addonInstance.timeToLevel or L["Calculating..."]
@@ -187,14 +193,18 @@ local function CreateStatsFrame(addonInstance)
             --     math.min(100, currentXPPerc + restedXPPerc)), 1, 1, 1, 0.6, 0.6, 1)
         end
         
-        if addonInstance.timeToLevel and addonInstance.timeToLevel ~= L["Calculating..."] and addonInstance.timeToLevel ~= L["N/A"] then
+        if addonInstance.actionsToLevelAvgXP then
+            GameTooltip:AddDoubleLine(L["Average XP"] .. ":", string.format("%d", addonInstance.actionsToLevelAvgXP), 1, 1, 1, 0, 0.6, 0.6)
             GameTooltip:AddLine(" ")
+        end
+
+        if addonInstance.timeToLevel and addonInstance.timeToLevel ~= L["Calculating..."] and addonInstance.timeToLevel ~= L["N/A"] then
             GameTooltip:AddDoubleLine(L["Time to Level"] .. ":", addonInstance.timeToLevel, 1, 1, 1, 0.6, 0.6, 1)
         end
-        
-        if addonInstance.actionsToLevelCount and addonInstance.actionsToLevelAvgXP then
-            GameTooltip:AddDoubleLine(L["Actions to Level"] .. ":", string.format("%d (avg %d XP)", 
-                addonInstance.actionsToLevelCount, addonInstance.actionsToLevelAvgXP), 1, 1, 1, 0, 1, 0)
+
+
+        if addonInstance.actionsToLevelCount then
+            GameTooltip:AddDoubleLine(L["Actions to Level"] .. ":", string.format("%d", addonInstance.actionsToLevelCount), 1, 1, 1, 0, 1, 0)
         end
         
         GameTooltip:Show()
@@ -227,18 +237,24 @@ local function CreateStatsFrame(addonInstance)
     levelHeader:SetText(L["Level Progress"])
     levelHeader:SetFullWidth(true)
     statsFrame:AddChild(levelHeader)
-    
-    -- Time to level label
-    remainingLabel = AceGUI:Create("Label")
-    remainingLabel:SetWidth(width - 25)
-    remainingLabel:SetText(L["Time to Level"] .. ": " .. L["Calculating..."])
-    statsFrame:AddChild(remainingLabel)
+
+    -- Average XP per action label
+    avgXpLabel = AceGUI:Create("Label")
+    avgXpLabel:SetWidth(width - 25)
+    avgXpLabel:SetText(L["Average XP"] .. ": " .. L["Calculating..."])
+    statsFrame:AddChild(avgXpLabel)
     
     -- Actions to level label
     actionsLabel = AceGUI:Create("Label")
     actionsLabel:SetWidth(width - 25)
     actionsLabel:SetText(L["Actions to Level"] .. ": " .. L["Calculating..."])
     statsFrame:AddChild(actionsLabel)
+    
+    -- Time to level label
+    remainingLabel = AceGUI:Create("Label")
+    remainingLabel:SetWidth(width - 25)
+    remainingLabel:SetText(L["Time to Level"] .. ": " .. L["Calculating..."])
+    statsFrame:AddChild(remainingLabel)
     
     local sumHeader = AceGUI:Create("Heading")
     sumHeader:SetText(L["Summary"])

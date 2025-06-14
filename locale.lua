@@ -36,6 +36,7 @@ L["Actions to Level"] = "Actions to Level"
 L["Actions to Level: %d (avg %s XP)"] = "Actions to Level: %d (avg %s XP)"
 L["Level Progress"] = "Level Progress"
 L["Summary"] = "Summary"
+L["Average XP"] = "Average XP"
 
 -- Strings for Snapshot Viewer
 L["Snapshots Viewer"] = "Snapshots Viewer"
