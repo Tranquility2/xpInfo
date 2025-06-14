@@ -136,6 +136,13 @@ local function CreateXpBarFrame(addonInstance)
     xpBarFrame:SetScript("OnLeave", function()
         GameTooltip:Hide()
     end)
+
+    -- On duble-click, toggle the stats frame visibility
+    xpBarFrame:SetScript("OnMouseUp", function(self, button)
+        if button == "LeftButton" then
+            addonInstance:ToggleStatsFrame()
+        end
+    end)
     
     return xpBarFrame
 end

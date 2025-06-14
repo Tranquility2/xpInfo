@@ -194,8 +194,6 @@ local function ToggleStatsFrame(addonInstance)
     if statsFrame and statsFrame:IsShown() then
         statsFrame:Hide()
         addonInstance.db.profile.showFrame = false
-        -- Also hide the XP bar if the main frame is hidden
-        addonTable.HideXpBarFrame(addonInstance)
     else
         if not statsFrame then
             CreateStatsFrame(addonInstance)
@@ -203,8 +201,6 @@ local function ToggleStatsFrame(addonInstance)
         statsFrame:Show()
         addonInstance.db.profile.showFrame = true
         UpdateStatsFrameText(addonInstance)
-        -- Show the XP bar when the main frame is shown
-        addonTable.ShowXpBarFrame(addonInstance)
     end
 end
 
