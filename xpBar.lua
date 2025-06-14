@@ -2,7 +2,7 @@ local addonName, addonTable = ...
 
 -- Local variables to hold UI elements
 local xpBarFrame
-local AceGUI = LibStub("AceGUI-3.0")
+-- No longer need AceGUI since we're using native frames
 
 -- Helper function to format large numbers (e.g., 1000 -> 1k, 1000000 -> 1M)
 local function FormatLargeNumber(num)
@@ -22,18 +22,41 @@ local function CreateXpBarFrame(addonInstance)
     local L = addonInstance.L
     local width = 250
     
-    -- Create a frame container
-    xpBarFrame = AceGUI:Create("Window")
-    xpBarFrame:SetTitle(L["XP Progress"])
-    xpBarFrame:SetLayout("Flow")
+    -- Create the XP bar as the main frame
+    xpBarFrame = CreateFrame("StatusBar", "XpInfoBarFrame", UIParent)
+    xpBarFrame:SetHeight(25) -- Define an appropriate height for the XP bar
     xpBarFrame:SetWidth(width)
-    xpBarFrame:SetHeight(80)
-    xpBarFrame:EnableResize(false)
+    xpBarFrame:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    -- Blue color that matches WoW's default XP bar but slightly brighter
+    xpBarFrame:SetStatusBarColor(0.0, 0.39, 0.88, 1.0) -- Medium blue
+    xpBarFrame:SetMinMaxValues(0, 100)
+    xpBarFrame:SetValue(0)
+    
+    -- Make the bar movable
+    xpBarFrame:SetMovable(true)
+    xpBarFrame:EnableMouse(true)
+    xpBarFrame:RegisterForDrag("LeftButton")
+    
+    -- Set up drag functionality
+    xpBarFrame:SetScript("OnDragStart", function(self)
+        self:StartMoving()
+    end)
+    
+    xpBarFrame:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        -- Save position after dragging
+        local point, relativeTo, relativePoint, xOfs, yOfs = self:GetPoint(1)
+        local relativeToName = relativeTo and (relativeTo:GetName() or "UIParent") or "UIParent"
+        addonInstance.db.profile.xpBarPosition = { point, relativeToName, relativePoint, xOfs, yOfs }
+    end)
     
     -- Restore saved position if available
     if addonInstance.db.profile.xpBarPosition then
         local pos = addonInstance.db.profile.xpBarPosition
         xpBarFrame:SetPoint(pos[1], pos[2], pos[3], pos[4], pos[5])
+    else
+        -- Default position if none saved
+        xpBarFrame:SetPoint("TOP", UIParent, "TOP", 0, -20)
     end
 
     -- Restore visibility state
@@ -43,76 +66,40 @@ local function CreateXpBarFrame(addonInstance)
         xpBarFrame:Hide()
     end
     
-    -- Save position on close
-    xpBarFrame:SetCallback("OnClose", function(widget)
-        -- Save position before closing
-        local frame = widget.frame
-        local point, relativeTo, relativePoint, xOfs, yOfs = frame:GetPoint(1)
-        local relativeToName = relativeTo and (relativeTo:GetName() or "UIParent") or "UIParent"
-        addonInstance.db.profile.xpBarPosition = { point, relativeToName, relativePoint, xOfs, yOfs }
-        addonInstance.db.profile.showXpBar = false
-    end)
-    
-    -- Hook into the frame's title bar to save position when dragging ends
-    if xpBarFrame.title then
-        local originalScript = xpBarFrame.title:GetScript("OnMouseUp")
-        xpBarFrame.title:SetScript("OnMouseUp", function(self, ...)
-            if originalScript then originalScript(self, ...) end
-            
-            -- Save position after dragging
-            local frame = xpBarFrame.frame
-            local point, relativeTo, relativePoint, xOfs, yOfs = frame:GetPoint(1)
-            local relativeToName = relativeTo and (relativeTo:GetName() or "UIParent") or "UIParent"
-            addonInstance.db.profile.xpBarPosition = { point, relativeToName, relativePoint, xOfs, yOfs }
-        end)
-    end
-
-    -- Create the XP bar
-    local xpBar = CreateFrame("StatusBar", nil, xpBarFrame.frame)
-    xpBar:SetHeight(25) -- Define an appropriate height for the XP bar
-    xpBar:SetPoint("TOPLEFT", xpBarFrame.frame, 15, -35) -- Adjust position without container
-    xpBar:SetPoint("RIGHT", xpBarFrame.frame, -15, 0)
-    xpBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
-    -- Blue color that matches WoW's default XP bar but slightly brighter
-    xpBar:SetStatusBarColor(0.0, 0.39, 0.88, 1.0) -- Medium blue
-    xpBar:SetMinMaxValues(0, 100)
-    xpBar:SetValue(0)
-    xpBar:SetFrameLevel(xpBarFrame.frame:GetFrameLevel() + 1)
-    
-    -- Store the progress bar in the xpBarFrame for access elsewhere
-    xpBarFrame.progressBar = xpBar
+    -- Store a reference to the xpBar itself for consistency with old code
+    xpBarFrame.progressBar = xpBarFrame
     
     -- Rested XP overlay
-    xpBar.restedBar = CreateFrame("StatusBar", nil, xpBarFrame.frame)
-    xpBar.restedBar:SetPoint("TOPLEFT", xpBar:GetStatusBarTexture(), "TOPRIGHT", 0, 0)
-    xpBar.restedBar:SetPoint("BOTTOMRIGHT", xpBar, "BOTTOMRIGHT", 0, 0)
-    xpBar.restedBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
-    xpBar.restedBar:SetStatusBarColor(0.6, 0, 0.6, 0.6) -- Purple slightly more opaque
-    xpBar.restedBar:SetMinMaxValues(0, 100)
-    xpBar.restedBar:SetValue(0)
-    xpBar.restedBar:SetFrameLevel(xpBar:GetFrameLevel())
+    xpBarFrame.restedBar = CreateFrame("StatusBar", nil, xpBarFrame)
+    xpBarFrame.restedBar:SetPoint("TOPLEFT", xpBarFrame:GetStatusBarTexture(), "TOPRIGHT", 0, 0)
+    xpBarFrame.restedBar:SetPoint("BOTTOMRIGHT", xpBarFrame, "BOTTOMRIGHT", 0, 0)
+    xpBarFrame.restedBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+    xpBarFrame.restedBar:SetStatusBarColor(0.6, 0, 0.6, 0.6) -- Purple slightly more opaque
+    xpBarFrame.restedBar:SetMinMaxValues(0, 100)
+    xpBarFrame.restedBar:SetValue(0)
+    xpBarFrame.restedBar:SetFrameLevel(xpBarFrame:GetFrameLevel())
     
     -- Add a border around the bar - using 9.0+ compatible approach
-    local border = CreateFrame("Frame", nil, xpBarFrame.frame, "BackdropTemplate")
-    border:SetPoint("TOPLEFT", xpBar, "TOPLEFT", -2, 2)
-    border:SetPoint("BOTTOMRIGHT", xpBar, "BOTTOMRIGHT", 2, -2)
+    local border = CreateFrame("Frame", nil, xpBarFrame, "BackdropTemplate")
+    border:SetPoint("TOPLEFT", xpBarFrame, "TOPLEFT", -2, 2)
+    border:SetPoint("BOTTOMRIGHT", xpBarFrame, "BOTTOMRIGHT", 2, -2)
     border:SetBackdrop({
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
         edgeSize = 8,
         insets = {left = 1, right = 1, top = 1, bottom = 1},
     })
-    border:SetFrameLevel(xpBar:GetFrameLevel() - 1) -- Put border behind the bar
+    border:SetFrameLevel(xpBarFrame:GetFrameLevel() - 1) -- Put border behind the bar
     
     -- Text overlay with improved visibility
-    xpBar.text = xpBar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    xpBar.text:SetPoint("CENTER", xpBar, "CENTER", 0, 0)
-    xpBar.text:SetText("0%")
-    xpBar.text:SetTextColor(1, 1, 1, 1) -- Bright white text
-    xpBar.text:SetShadowOffset(1, -1)   -- Text shadow for better readability
-    xpBar.text:SetShadowColor(0, 0, 0, 1)
+    xpBarFrame.text = xpBarFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    xpBarFrame.text:SetPoint("CENTER", xpBarFrame, "CENTER", 0, 0)
+    xpBarFrame.text:SetText("0%")
+    xpBarFrame.text:SetTextColor(1, 1, 1, 1) -- Bright white text
+    xpBarFrame.text:SetShadowOffset(1, -1)   -- Text shadow for better readability
+    xpBarFrame.text:SetShadowColor(0, 0, 0, 1)
     
     -- Add tooltip functionality
-    xpBar:SetScript("OnEnter", function(self)
+    xpBarFrame:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_CURSOR")
         GameTooltip:ClearLines()
         
@@ -146,7 +133,7 @@ local function CreateXpBarFrame(addonInstance)
         GameTooltip:Show()
     end)
     
-    xpBar:SetScript("OnLeave", function()
+    xpBarFrame:SetScript("OnLeave", function()
         GameTooltip:Hide()
     end)
     
@@ -156,9 +143,6 @@ end
 -- Function to update the XP bar values
 local function UpdateXpBarFrame(addonInstance)
     if not xpBarFrame or not xpBarFrame:IsShown() then return end
-    
-    local xpBar = xpBarFrame.progressBar
-    if not xpBar then return end
     
     local L = addonInstance.L
     local currentXP = UnitXP("player")
@@ -172,10 +156,10 @@ local function UpdateXpBarFrame(addonInstance)
         restedXPPerc = (restedXP / maxXP) * 100
     end
 
-    xpBar:SetValue(currentXPPerc)
+    xpBarFrame:SetValue(currentXPPerc)
     
     -- Better format for the text display - show percentage and remaining XP
-    if xpBar.text then
+    if xpBarFrame.text then
         -- Format large numbers for better readability
         local function FormatNumber(num)
             if num >= 1000 then
@@ -188,20 +172,20 @@ local function UpdateXpBarFrame(addonInstance)
         local formattedPercent = string.format("%.1f%%", currentXPPerc)
         local formattedRemaining = FormatNumber(maxXP - currentXP)
         
-        xpBar.text:SetText(string.format("%s (%s %s)", 
+        xpBarFrame.text:SetText(string.format("%s (%s %s)", 
             formattedPercent, formattedRemaining, L["remaining"]))
     end
     
     -- Update rested bonus display if it exists
-    if xpBar.restedBar then
+    if xpBarFrame.restedBar then
         local restedWidth = 0
         if currentXPPerc < 100 then
             -- Set the width based on where the current XP ends
             restedWidth = math.min(restedXPPerc, 100 - currentXPPerc)
-            xpBar.restedBar:SetValue(restedWidth)
+            xpBarFrame.restedBar:SetValue(restedWidth)
         else
             -- At max XP, don't show rested bonus
-            xpBar.restedBar:SetValue(0)
+            xpBarFrame.restedBar:SetValue(0)
         end
     end
 end
