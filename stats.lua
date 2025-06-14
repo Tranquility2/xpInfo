@@ -60,7 +60,7 @@ local function CreateStatsFrame(addonInstance)
     
     -- Create a frame container
     statsFrame = AceGUI:Create("Window")
-    statsFrame:SetTitle(L["Progression"])
+    statsFrame:SetTitle(L["XpInfo"])
     statsFrame:SetLayout("Flow")
     statsFrame:SetWidth(width)
     statsFrame:SetHeight(300)

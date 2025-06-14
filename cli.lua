@@ -75,8 +75,22 @@ function addonTable.InitializeChatCommands(addonInstance)
             end
         elseif args[1] == "config" then
             LibStub("AceConfigDialog-3.0"):Open(addonNameForPrint)
+        elseif args[1] == "estimate" or args[1] == "est" then
+            -- Show estimated max level information
+            local estimateText = addonInstance:GetEstimatedMaxLevelText()
+            print(addonNameForPrint .. ": " .. estimateText)
+            
+            -- Also show raw data for debugging
+            local estimatedMaxLevel = addonInstance.db.profile.estimatedMaxLevel
+            if estimatedMaxLevel and estimatedMaxLevel.level and estimatedMaxLevel.time then
+                local currentTime = addonInstance.timePlayedTotal or 0
+                local timeToMax = estimatedMaxLevel.time - currentTime
+                print(string.format("  Target Level: %d", estimatedMaxLevel.level))
+                print(string.format("  Estimated Total Time: %s", addonInstance:FormatTime(estimatedMaxLevel.time)))
+                print(string.format("  Time Remaining: %s", addonInstance:FormatTime(timeToMax)))
+            end
         else
-            print(addonNameForPrint .. ": " .. L["Usage: /xpi [show|hide|toggle|reset|config] [xpbar]"])
+            print(addonNameForPrint .. ": " .. L["Usage: /xpi [show|hide|toggle|reset|config|estimate] [xpbar]"])
             print(addonNameForPrint .. ": Examples:")
             print("  /xpi show - Show the stats frame")
             print("  /xpi hide - Hide the stats frame")
@@ -86,6 +100,7 @@ function addonTable.InitializeChatCommands(addonInstance)
             print("  /xpi reset - Reset the stats frame position")
             print("  /xpi reset xpbar - Reset the XP bar position")
             print("  /xpi config - Open the configuration panel")
+            print("  /xpi estimate - Show estimated time to max level")
         end
     end
 

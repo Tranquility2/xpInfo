@@ -105,6 +105,27 @@ function addonTable.InitializeOptions(addonInstance)
                     -- No immediate update needed as the setting will be used the next time tooltip shows
                 end,
             },
+            maxLevel = {
+                type = "range",
+                order = 36,
+                name = L["Max Level"] or "Max Level",
+                desc = L["Set the maximum level for the level progression graph"] or "Set the maximum level for the level progression graph",
+                min = 10,
+                max = 80,
+                step = 1,
+                get = function() return db.profile.maxLevel end,
+                set = function(_, value)
+                    db.profile.maxLevel = value
+                    -- Recalculate estimated max level with new setting
+                    if addonInstance.CalculateEstimatedMaxLevel then
+                        addonInstance:CalculateEstimatedMaxLevel()
+                    end
+                    -- Update the level graph if it's currently showing
+                    if addonInstance.UpdateLevelGraph then
+                        addonInstance:UpdateLevelGraph()
+                    end
+                end,
+            },
             profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(db)
         },
     }

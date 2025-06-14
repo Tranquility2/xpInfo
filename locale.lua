@@ -4,7 +4,7 @@ local L = LibStub("AceLocale-3.0"):NewLocale(addonName, "enUS", true)
 if not L then return end
 
 -- Localization strings for the addon
-L["Progression"] = "Progression"
+L["XpInfo"] = "XpInfo"
 L["Current XP"] = "Current XP"
 L["Rested XP"] = "Rested XP"
 L["XP Progress"] = "XP Progress"
@@ -13,12 +13,13 @@ L["Time Played (Level)"] = "Time Played (Level)"
 L["Time to Level"] = "Time to Level"
 L["N/A"] = "N/A"
 L["Calculating..."] = "Calculating..."
-L["Usage: /xpi [show|hide|reset|config]"] = "Usage: /xpi [show|hide|reset|config]"
 L["Congratulations on leveling up!"] = "Congratulations on leveling up!"
 L["Refresh"] = "Refresh"
 L["Settings"] = "Settings"
 L["Max XP Snapshots"] = "Max XP Snapshots"
 L["Set the maximum number of recent XP snapshots to store for rate calculation."] = "Set the maximum number of recent XP snapshots to store for rate calculation."
+L["Max Level"] = "Max Level"
+L["Set the maximum level for the level progression graph"] = "Set the maximum level for the level progression graph"
 L["Show Frame"] = "Show Frame"
 L["Toggle the visibility of the player progression frame."] = "Toggle the visibility of the player progression frame."
 L["Frame Position"] = "Frame Position"
@@ -42,7 +43,7 @@ L["Average XP"] = "Average XP"
 L["Show XP Bar"] = "Show XP Bar"
 L["Toggle the visibility of the standalone XP bar."] = "Toggle the visibility of the standalone XP bar."
 L["XP Bar position reset."] = "XP Bar position reset."
-L["Usage: /xpi [show|hide|toggle|reset|config] [xpbar]"] = "Usage: /xpi [show|hide|toggle|reset|config] [xpbar]"
+L["Usage: /xpi [show|hide|toggle|reset|config|estimate] [xpbar]"] = "Usage: /xpi [show|hide|toggle|reset|config|estimate] [xpbar]"
 L["Show Stats Frame"] = "Show Stats Frame"
 L["remaining"] = "remaining"
 
@@ -91,3 +92,8 @@ L["Frame is currently hidden."] = "Frame is currently hidden."
 -- Progress bar
 L["remaining"] = "remaining"
 L["After Rested"] = "After Rested"
+
+-- Estimated Max Level Feature
+L["Estimated Time to Max Level"] = "Estimated Time to Max Level"
+L["Based on current progression"] = "Based on current progression"
+L["Insufficient data for estimate"] = "Insufficient data for estimate"

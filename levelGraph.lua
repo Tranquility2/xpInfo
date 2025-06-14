@@ -52,7 +52,9 @@ local function CreateLevelGraphFrame(addonInstance)
     -- Create a graph object using LibGraph-2.0
     graph = LibGraph:CreateGraphLine("XpInfoLevelProgressGraph", levelGraphFrame, "CENTER", "CENTER", 0, 0, 360, 220)
     graph:SetXAxis(0, 1)
-    graph:SetYAxis(1, 60)  -- Default Y range for levels 1-60
+    -- Use configurable max level from settings, default to 60 if not set
+    local maxLevel = addonInstance.db.profile.maxLevel or 60
+    graph:SetYAxis(1, maxLevel)  -- Dynamic Y range based on configuration
     graph:SetGridSpacing(1, 5)
     graph:SetGridColor({0.2, 0.2, 0.2, 0.5})
     graph:SetAxisDrawing(true, true)
@@ -109,7 +111,8 @@ local function UpdateLevelGraph(addonInstance)
     end
     
     -- Determine min/max values for proper scaling
-    local minLevel = 60
+    local configuredMaxLevel = addonInstance.db.profile.maxLevel or 60
+    local minLevel = configuredMaxLevel
     local maxLevel = 1
     local maxTime = 0
     
@@ -118,6 +121,18 @@ local function UpdateLevelGraph(addonInstance)
         maxLevel = math.max(maxLevel, snapshot.level)
         maxTime = math.max(maxTime, snapshot.time)
     end
+    
+    -- Also consider estimated max level point for scaling
+    local estimatedMaxLevel = addonInstance.db.profile.estimatedMaxLevel
+    if estimatedMaxLevel and estimatedMaxLevel.level and estimatedMaxLevel.time then
+        minLevel = math.min(minLevel, estimatedMaxLevel.level)
+        maxLevel = math.max(maxLevel, estimatedMaxLevel.level)
+        maxTime = math.max(maxTime, estimatedMaxLevel.time)
+    end
+    
+    -- Ensure the graph shows up to the configured max level
+    -- but also accommodate any levels beyond it if they exist in the data
+    maxLevel = math.max(maxLevel, configuredMaxLevel)
     
     -- Adjust ranges if needed
     if maxLevel <= minLevel then
@@ -218,6 +233,12 @@ local function UpdateLevelGraph(addonInstance)
     local lastSnap = levelSnapshots[#levelSnapshots]
     if not lastSnap or lastSnap.level ~= currentLevel or math.abs(lastSnap.time - currentTime) > 60 then
         table.insert(dataPoints, {currentTime / SEC_PER_HOUR, currentLevel})
+    end
+    
+    -- Add estimated max level point if available
+    local estimatedMaxLevel = addonInstance.db.profile.estimatedMaxLevel
+    if estimatedMaxLevel and estimatedMaxLevel.level and estimatedMaxLevel.time then
+        table.insert(dataPoints, {estimatedMaxLevel.time / SEC_PER_HOUR, estimatedMaxLevel.level})
     end
     
     -- Add the data series to the graph
