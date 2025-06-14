@@ -52,7 +52,7 @@ Access via `/xpi config`:
 - **WoW Classic Era**: Interface 11507 ✅
 - **Classic Era Servers**: Fully supported ✅  
 - **Hardcore**: Compatible ✅
-- **Retail**: Not supported ❌
+- **Retail**: Not Tested ❌
 
 ---
 
