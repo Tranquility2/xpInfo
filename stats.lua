@@ -3,7 +3,7 @@ local addonName, addonTable = ...
 -- Local variables to hold UI elements
 local AceGUI = LibStub("AceGUI-3.0")
 local statsFrame, xpLabel, timeLabel, remainingLabel
-local refreshButton, settingsButton, debugButton
+local refreshButton, settingsButton, snapshotsButton
 avgXpLabel = nil -- Define globally to avoid nil errors
 
 -- Function to update the content of the frame
@@ -63,7 +63,7 @@ local function CreateStatsFrame(addonInstance)
     statsFrame:SetTitle(L["Progression"])
     statsFrame:SetLayout("Flow")
     statsFrame:SetWidth(width)
-    statsFrame:SetHeight(320)
+    statsFrame:SetHeight(300)
     statsFrame:EnableResize(false)
     
     -- Restore saved position if available
@@ -105,14 +105,6 @@ local function CreateStatsFrame(addonInstance)
 
     -- Create an XP bar when the stats frame is created
     addonTable.ShowXpBarFrame(addonInstance)
-
-    -- Add some tripple space before the first heading
-    for i = 1, 3 do
-        local spacer = AceGUI:Create("Label")
-        spacer:SetWidth(width - 25) -- Adjust width to match the frame
-        spacer:SetText(" ")
-        statsFrame:AddChild(spacer)
-    end
     
     local xpHeader = AceGUI:Create("Heading")
     xpHeader:SetText(L["XP Progress"])
@@ -183,13 +175,13 @@ local function CreateStatsFrame(addonInstance)
     buttonGroup:AddChild(settingsButton)
     
     -- Snapshots button
-    debugButton = AceGUI:Create("Button")
-    debugButton:SetText(L["View Snapshots"])
-    debugButton:SetWidth(width - 25)
-    debugButton:SetCallback("OnClick", function()
+    snapshotsButton = AceGUI:Create("Button")
+    snapshotsButton:SetText(L["View Snapshots"])
+    snapshotsButton:SetWidth(width - 25)
+    snapshotsButton:SetCallback("OnClick", function()
         addonInstance:snapshotsViewerBuidler()
     end)
-    buttonGroup:AddChild(debugButton)
+    buttonGroup:AddChild(snapshotsButton)
     
     -- Update the frame with current data
     UpdateStatsFrameText(addonInstance)

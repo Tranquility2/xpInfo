@@ -3,6 +3,7 @@ local addon = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0", "Ace
 
 -- Localization: L will be populated by locale.lua
 local L = LibStub("AceLocale-3.0"):GetLocale(addonName)    -- Default database values
+-- Defaults for the addon database
 local defaults = {
     profile = {
         showFrame = true,
@@ -27,7 +28,6 @@ function addon:OnInitialize()
     self.lastXP = 0
     self.xpGained = 0 -- Cumulative XP gained in the current level
     self.timeToLevel = L["Calculating..."]
-
 
     -- Ensure xpSnapshots is initialized if loading old saved variables
     if self.db.profile.xpGainedSamples and not self.db.profile.xpSnapshots then
