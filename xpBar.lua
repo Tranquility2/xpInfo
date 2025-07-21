@@ -71,13 +71,12 @@ local function CreateXpBarFrame(addonInstance)
     
     -- Rested XP overlay
     xpBarFrame.restedBar = CreateFrame("StatusBar", nil, xpBarFrame)
-    xpBarFrame.restedBar:SetPoint("TOPLEFT", xpBarFrame:GetStatusBarTexture(), "TOPRIGHT", 0, 0)
-    xpBarFrame.restedBar:SetPoint("BOTTOMRIGHT", xpBarFrame, "BOTTOMRIGHT", 0, 0)
     xpBarFrame.restedBar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
     xpBarFrame.restedBar:SetStatusBarColor(0.6, 0, 0.6, 0.6) -- Purple slightly more opaque
     xpBarFrame.restedBar:SetMinMaxValues(0, 100)
     xpBarFrame.restedBar:SetValue(0)
     xpBarFrame.restedBar:SetFrameLevel(xpBarFrame:GetFrameLevel())
+    xpBarFrame.restedBar:SetAllPoints(xpBarFrame) -- Overlay, but we'll control width/position dynamically
     
     -- Add a border around the bar - using 9.0+ compatible approach
     local border = CreateFrame("Frame", nil, xpBarFrame, "BackdropTemplate")
@@ -193,14 +192,25 @@ local function UpdateXpBarFrame(addonInstance)
     
     -- Update rested bonus display if it exists
     if xpBarFrame.restedBar then
-        local restedWidth = 0
-        if currentXPPerc < 100 then
-            -- Set the width based on where the current XP ends
-            restedWidth = math.min(restedXPPerc, 100 - currentXPPerc)
-            xpBarFrame.restedBar:SetValue(restedWidth)
+        local barWidth = xpBarFrame:GetWidth()
+        local currentWidth = (currentXPPerc / 100) * barWidth
+        local restedWidth = (restedXPPerc / 100) * barWidth
+        local availableWidth = barWidth - currentWidth
+        -- Only show if there's rested XP and not at max XP
+        if restedXPPerc > 0 and currentXPPerc < 100 then
+            xpBarFrame.restedBar:Show()
+            xpBarFrame.restedBar:ClearAllPoints()
+            -- Anchor to the right edge of the current XP fill
+            xpBarFrame.restedBar:SetPoint("LEFT", xpBarFrame, "LEFT", currentWidth, 0)
+            xpBarFrame.restedBar:SetPoint("TOP", xpBarFrame, "TOP", 0, 0)
+            xpBarFrame.restedBar:SetPoint("BOTTOM", xpBarFrame, "BOTTOM", 0, 0)
+            -- Ensure width is at least 1 pixel if any rested XP is available
+            local displayWidth = math.max(1, math.min(restedWidth, availableWidth))
+            xpBarFrame.restedBar:SetWidth(displayWidth)
+            xpBarFrame.restedBar:SetMinMaxValues(0, 1)
+            xpBarFrame.restedBar:SetValue(1)
         else
-            -- At max XP, don't show rested bonus
-            xpBarFrame.restedBar:SetValue(0)
+            xpBarFrame.restedBar:Hide()
         end
     end
 end
