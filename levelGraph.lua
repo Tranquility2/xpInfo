@@ -11,7 +11,7 @@ local function CreateLevelGraphFrame(addonInstance)
     
     -- Create main frame container
     levelGraphFrame = CreateFrame("Frame", "XpInfoLevelGraph", UIParent, "BackdropTemplate")
-    levelGraphFrame:SetSize(400, 300)
+    levelGraphFrame:SetSize(500, 300)
     levelGraphFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
     levelGraphFrame:SetBackdrop({
         bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
@@ -50,24 +50,21 @@ local function CreateLevelGraphFrame(addonInstance)
     titleText:SetText(L["Level Progression"] or "Level Progression")
     
     -- Create a graph object using LibGraph-2.0
-    graph = LibGraph:CreateGraphLine("XpInfoLevelProgressGraph", levelGraphFrame, "CENTER", "CENTER", 0, 0, 360, 220)
-    graph:SetXAxis(0, 1)
-    -- Use configurable max level from settings, default to 60 if not set
+    graph = LibGraph:CreateGraphLine("XpInfoLevelProgressGraph", levelGraphFrame, "CENTER", "CENTER", 0, 0, 400, 250)
+    
+    -- Set fixed axis ranges: X-axis 0-100 hours, Y-axis 1 to maxLevel
     local maxLevel = addonInstance.db.profile.maxLevel or 60
-    graph:SetYAxis(1, maxLevel)  -- Dynamic Y range based on configuration
-    graph:SetGridSpacing(1, 5)
-    graph:SetGridColor({0.2, 0.2, 0.2, 0.5})
+    graph:SetXAxis(0, 100)  -- Fixed 0-100 hours
+    graph:SetYAxis(1, maxLevel)  -- 1 to configured max level
+    graph:SetGridSpacing(20, 10)  -- X-axis every 20 hours, Y-axis every 10 levels (limited grid lines)
+    graph:SetGridColor({0.2, 0.2, 0.2, 0.4})
     graph:SetAxisDrawing(true, true)
     graph:SetAxisColor({1.0, 1.0, 1.0, 1.0})
-    graph:SetAutoScale(true)
+    graph:SetAutoScale(false)  -- Disable auto-scaling to maintain fixed ranges
     
-    -- Enable axis labels
-    graph:SetYLabels(true)   -- Show Y-axis labels (level numbers)
-    -- X-axis labels will be created manually
-    
-    -- Position the graph inside our frame with extra left margin for y-axis label
-    graph:SetPoint("TOPLEFT", levelGraphFrame, "TOPLEFT", 40, -50) 
-    graph:SetPoint("BOTTOMRIGHT", levelGraphFrame, "BOTTOMRIGHT", -20, 50)  -- Increased bottom margin for X-axis label
+    -- Position the graph inside our frame
+    graph:SetPoint("TOPLEFT", levelGraphFrame, "TOPLEFT", 60, -60) 
+    graph:SetPoint("BOTTOMRIGHT", levelGraphFrame, "BOTTOMRIGHT", -30, 60)
     
     -- Close button
     local closeButton = CreateFrame("Button", nil, levelGraphFrame, "UIPanelCloseButton")
@@ -77,25 +74,57 @@ local function CreateLevelGraphFrame(addonInstance)
         addonInstance.db.profile.showLevelGraph = false
     end)
     
-    -- Add axis labels
+    -- Create X-axis labels (0, 20, 40, 60, 80, 100 hours)
+    levelGraphFrame.xAxisLabels = {}
+    for i = 0, 100, 20 do
+        local label = levelGraphFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        label:SetPoint("TOP", graph, "BOTTOMLEFT", (i/100) * graph:GetWidth(), -10)
+        label:SetText(i .. "h")  -- Display as "0h", "20h", "40h", etc.
+        table.insert(levelGraphFrame.xAxisLabels, label)
+    end
+    
+    -- Create Y-axis labels (1, 5, 10, 15, ... up to maxLevel)
+    levelGraphFrame.yAxisLabels = {}
+    
+    -- Always show level 1 (at bottom)
+    local label1 = levelGraphFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    local yPos1 = ((maxLevel - 1) / (maxLevel - 1)) * graph:GetHeight()  -- Bottom position
+    label1:SetPoint("RIGHT", graph, "TOPLEFT", -10, -yPos1)
+    label1:SetText("1")
+    table.insert(levelGraphFrame.yAxisLabels, label1)
+    
+    -- Show every 5 levels starting from 5
+    for i = 5, maxLevel, 5 do
+        local label = levelGraphFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        local yPos = ((maxLevel - i) / (maxLevel - 1)) * graph:GetHeight()  -- Reversed position
+        label:SetPoint("RIGHT", graph, "TOPLEFT", -10, -yPos)
+        label:SetText(tostring(i))
+        table.insert(levelGraphFrame.yAxisLabels, label)
+    end
+    
+    -- Always show max level if it's not already shown (at top)
+    if maxLevel % 5 ~= 0 then
+        local labelMax = levelGraphFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        local yPosMax = ((maxLevel - maxLevel) / (maxLevel - 1)) * graph:GetHeight()  -- Top position
+        labelMax:SetPoint("RIGHT", graph, "TOPLEFT", -10, -yPosMax)
+        labelMax:SetText(tostring(maxLevel))
+        table.insert(levelGraphFrame.yAxisLabels, labelMax)
+    end
+    
+    -- Add axis titles
     local xAxisLabel = levelGraphFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    xAxisLabel:SetPoint("BOTTOM", levelGraphFrame, "BOTTOM", 0, 15)
+    xAxisLabel:SetPoint("TOP", levelGraphFrame, "BOTTOM", 0, 25)
     xAxisLabel:SetText(L["Time Played (Hours)"] or "Time Played (Hours)")
     
     local yAxisLabel = levelGraphFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    -- Position the y-axis label inside the frame, to the left of the graph's y-axis labels
-    -- This positions it in the space between the frame edge and the graph
-    yAxisLabel:SetPoint("CENTER", levelGraphFrame, "LEFT", 25, 0)
-    yAxisLabel:SetRotation(1.5708) -- 90 degrees in radians (π/2)
+    yAxisLabel:SetPoint("CENTER", levelGraphFrame, "LEFT", 15, 0)
+    yAxisLabel:SetRotation(1.5708) -- 90 degrees
     yAxisLabel:SetText(L["Character Level"] or "Character Level")
-    
-    -- Set a higher strata to ensure the label renders above everything else
-    yAxisLabel:SetDrawLayer("OVERLAY", 7)
     
     return levelGraphFrame
 end
 
--- Function to update the level graph with the latest data
+-- Function to update the level graph with snapshot data
 local function UpdateLevelGraph(addonInstance)
     if not levelGraphFrame or not levelGraphFrame:IsShown() or not graph then 
         return 
@@ -110,153 +139,15 @@ local function UpdateLevelGraph(addonInstance)
         return
     end
     
-    -- Determine min/max values for proper scaling
-    local configuredMaxLevel = addonInstance.db.profile.maxLevel or 60
-    local minLevel = configuredMaxLevel
-    local maxLevel = 1
-    local maxTime = 0
-    
-    for _, snapshot in ipairs(levelSnapshots) do
-        minLevel = math.min(minLevel, snapshot.level)
-        maxLevel = math.max(maxLevel, snapshot.level)
-        maxTime = math.max(maxTime, snapshot.time)
-    end
-    
-    -- Also consider estimated max level point for scaling
-    local estimatedMaxLevel = addonInstance.db.profile.estimatedMaxLevel
-    if estimatedMaxLevel and estimatedMaxLevel.level and estimatedMaxLevel.time then
-        minLevel = math.min(minLevel, estimatedMaxLevel.level)
-        maxLevel = math.max(maxLevel, estimatedMaxLevel.level)
-        maxTime = math.max(maxTime, estimatedMaxLevel.time)
-    end
-    
-    -- Ensure the graph shows up to the configured max level
-    -- but also accommodate any levels beyond it if they exist in the data
-    maxLevel = math.max(maxLevel, configuredMaxLevel)
-    
-    -- Adjust ranges if needed
-    if maxLevel <= minLevel then
-        -- If only one level exists, add some padding
-        minLevel = minLevel - 1
-        maxLevel = maxLevel + 1
-    end
-    
-    if maxTime == 0 then
-        maxTime = 1  -- Default if no time data
-    end
-    
-    -- Set the axis ranges
-    local maxHours = maxTime / 3600
-    graph:SetXAxis(0, maxHours)  -- Convert seconds to hours
-    graph:SetYAxis(minLevel, maxLevel + 1)
-    
-    -- Set grid spacing for nice round numbers
-    local xGridSpacing = 1
-    if maxHours > 50 then
-        xGridSpacing = 10  -- Every 10 hours if playing time is long
-    elseif maxHours > 20 then
-        xGridSpacing = 5   -- Every 5 hours for medium playtime
-    elseif maxHours > 10 then
-        xGridSpacing = 2   -- Every 2 hours for shorter playtime
-    end
-    
-    local yGridSpacing = 1 -- Default to 1 level intervals
-    if maxLevel - minLevel > 20 then
-        yGridSpacing = 5   -- Every 5 levels if level range is large
-    elseif maxLevel - minLevel > 10 then
-        yGridSpacing = 2   -- Every 2 levels if medium range
-    end
-    
-    graph:SetGridSpacing(xGridSpacing, yGridSpacing)
-    
-    -- Function to add custom X-axis time labels
-    local function AddTimeAxisLabels()
-        -- Calculate how many labels to show based on grid spacing, but limit to prevent overflow
-        local numLabels = math.min(math.floor(maxHours / xGridSpacing), 10) -- Cap at 10 labels max
-        
-        -- Get the graph's dimensions and position
-        local graphWidth = graph:GetWidth()
-        
-        -- Create a container frame for the x-axis labels if it doesn't exist
-        if not levelGraphFrame.xAxisLabelContainer then
-            levelGraphFrame.xAxisLabelContainer = CreateFrame("Frame", nil, levelGraphFrame)
-            levelGraphFrame.xAxisLabelContainer:SetPoint("TOPLEFT", graph, "BOTTOMLEFT", 0, -5)
-            levelGraphFrame.xAxisLabelContainer:SetPoint("TOPRIGHT", graph, "BOTTOMRIGHT", 0, -5)
-            levelGraphFrame.xAxisLabelContainer:SetHeight(20)
-        end
-        
-        -- To properly align with the grid lines, we need to perform some calculations
-        -- Calculate left and right edges of the graph area (where the grid starts and ends)
-        local graphStartX = graph:GetWidth() * 0.08  -- More conservative padding estimation
-        local graphEndX = graph:GetWidth() - (graph:GetWidth() * 0.08)  -- Right padding
-        local usableWidth = graphEndX - graphStartX
-        
-        -- Calculate exact grid positions, ensuring they stay within bounds
-        for i = 0, numLabels do
-            local hourValue = i * xGridSpacing
-            -- Skip if this would exceed our max hours (safety check)
-            if hourValue > maxHours then
-                break
-            end
-            
-            -- Calculate exact grid position with proper adjustment for graph internal margins
-            local xPosFraction = hourValue / maxHours
-            local xPos = graphStartX + (usableWidth * xPosFraction)
-            
-            -- Ensure the label position stays within the container bounds
-            xPos = math.max(10, math.min(xPos, graphWidth - 10))
-            
-            local label = levelGraphFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-            -- Center the label directly under the grid line
-            label:SetPoint("TOP", levelGraphFrame.xAxisLabelContainer, "TOPLEFT", xPos, 0)
-            label:SetJustifyH("CENTER")
-            label:SetText(string.format("%d", hourValue))  -- Display hours as integers
-            table.insert(levelGraphFrame.xAxisLabels, label)
-        end
-    end
-    
-    -- Constants for the X time axis (seconds to hours)
-    local SEC_PER_HOUR = 3600
-    
-    -- Prepare data series for the graph
+    -- Prepare data points from snapshots
     local dataPoints = {}
-    
     for _, snapshot in ipairs(levelSnapshots) do
-        table.insert(dataPoints, {snapshot.time / SEC_PER_HOUR, snapshot.level})
+        local timeInHours = snapshot.time / 3600  -- Convert seconds to hours
+        table.insert(dataPoints, {timeInHours, snapshot.level})
     end
     
-    -- Add the current level if not already included
-    local currentLevel = UnitLevel("player")
-    local currentTime = addonInstance.timePlayedTotal
-    
-    -- Check if the last snapshot isn't already the current level/time
-    local lastSnap = levelSnapshots[#levelSnapshots]
-    if not lastSnap or lastSnap.level ~= currentLevel or math.abs(lastSnap.time - currentTime) > 60 then
-        table.insert(dataPoints, {currentTime / SEC_PER_HOUR, currentLevel})
-    end
-    
-    -- Add estimated max level point if available
-    local estimatedMaxLevel = addonInstance.db.profile.estimatedMaxLevel
-    if estimatedMaxLevel and estimatedMaxLevel.level and estimatedMaxLevel.time then
-        table.insert(dataPoints, {estimatedMaxLevel.time / SEC_PER_HOUR, estimatedMaxLevel.level})
-    end
-    
-    -- Add the data series to the graph
-    graph:AddDataSeries(dataPoints, {0.0, 0.6, 1.0, 0.8})
-    
-    -- Remove any existing X-axis labels before adding new ones
-    -- This is necessary when the graph is refreshed
-    if levelGraphFrame.xAxisLabels then
-        for _, label in ipairs(levelGraphFrame.xAxisLabels) do
-            label:Hide()
-        end
-        levelGraphFrame.xAxisLabels = {}
-    else
-        levelGraphFrame.xAxisLabels = {}
-    end
-    
-    -- Add the hour labels
-    AddTimeAxisLabels()
+    -- Add the data series to the graph (blue line)
+    graph:AddDataSeries(dataPoints, {0.2, 0.6, 1.0, 0.9})
 end
 
 -- Toggle the Level Graph frame visibility
