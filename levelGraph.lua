@@ -53,7 +53,7 @@ local function CreateLevelGraphFrame(addonInstance)
     graph = LibGraph:CreateGraphLine("XpInfoLevelProgressGraph", levelGraphFrame, "CENTER", "CENTER", 0, 0, 400, 250)
     
     -- Set fixed axis ranges: X-axis 0-100 hours, Y-axis 1 to maxLevel
-    local maxLevel = addonInstance.db.profile.maxLevel or 60
+    local maxLevel = addonInstance.db.profile.maxLevel
     graph:SetXAxis(0, 100)  -- Fixed 0-100 hours
     graph:SetYAxis(1, maxLevel)  -- 1 to configured max level
     graph:SetGridSpacing(20, 10)  -- X-axis every 20 hours, Y-axis every 10 levels (limited grid lines)
@@ -124,6 +124,89 @@ local function CreateLevelGraphFrame(addonInstance)
     return levelGraphFrame
 end
 
+-- Function to calculate estimated time to reach max level using linear regression
+local function CalculateTimeToMaxLevel(levelSnapshots, maxLevel)
+    print("Debug: CalculateTimeToMaxLevel called")
+    print("Debug: Number of snapshots:", levelSnapshots and #levelSnapshots or 0)
+    print("Debug: Max level:", maxLevel)
+    
+    if not levelSnapshots or #levelSnapshots < 2 then
+        print("Debug: Insufficient snapshots (need at least 2)")
+        return nil
+    end
+    
+    -- Get the latest snapshot to check current state
+    local latestSnapshot = levelSnapshots[#levelSnapshots]
+    local currentLevel = latestSnapshot.level
+    
+    print("Debug: Current level:", currentLevel)
+    
+    if currentLevel >= maxLevel then
+        print("Debug: Already at or above max level")
+        return nil
+    end
+    
+    -- Prepare data points for linear regression (time vs level)
+    local n = #levelSnapshots
+    local sumX = 0  -- sum of time values (hours)
+    local sumY = 0  -- sum of level values
+    local sumXY = 0 -- sum of (time * level)
+    local sumX2 = 0 -- sum of (time^2)
+    
+    print("Debug: Starting regression calculations with", n, "data points")
+    
+    -- Calculate sums for linear regression formula
+    for i, snapshot in ipairs(levelSnapshots) do
+        local timeInHours = snapshot.time / 3600
+        local level = snapshot.level
+        
+        print(string.format("Debug: Point %d - Time: %.2f hours, Level: %d", i, timeInHours, level))
+        
+        sumX = sumX + timeInHours
+        sumY = sumY + level
+        sumXY = sumXY + (timeInHours * level)
+        sumX2 = sumX2 + (timeInHours * timeInHours)
+    end
+    
+    print("Debug: Regression sums - sumX:", sumX, "sumY:", sumY, "sumXY:", sumXY, "sumX2:", sumX2)
+    
+    -- Calculate linear regression coefficients: level = a * time + b
+    local denominator = n * sumX2 - sumX * sumX
+    print("Debug: Denominator:", denominator)
+    
+    if denominator == 0 then
+        print("Debug: Cannot calculate regression - denominator is zero (all times are the same)")
+        return nil -- Cannot calculate regression (all times are the same)
+    end
+    
+    local a = (n * sumXY - sumX * sumY) / denominator  -- slope (levels per hour)
+    local b = (sumY - a * sumX) / n                    -- y-intercept (starting level offset)
+    
+    print("Debug: Regression coefficients - slope (a):", a, "y-intercept (b):", b)
+    
+    -- Validate the slope - should be positive (leveling up over time)
+    if a <= 0 then
+        print("Debug: Invalid regression - slope is not positive:", a)
+        return nil -- Invalid regression (not leveling up)
+    end
+    
+    -- Calculate estimated time to reach max level
+    -- Solve: maxLevel = a * estimatedTime + b
+    -- estimatedTime = (maxLevel - b) / a
+    local estimatedTimeToMaxLevel = (maxLevel - b) / a
+    
+    print("Debug: Raw estimation:", estimatedTimeToMaxLevel, "hours")
+    
+    -- Accept reasonable estimates (up to 1000 hours)
+    if estimatedTimeToMaxLevel > 0 and estimatedTimeToMaxLevel <= 1000 then
+        print("Debug: Returning valid estimation:", estimatedTimeToMaxLevel, "hours")
+        return estimatedTimeToMaxLevel
+    else
+        print("Debug: Estimation out of reasonable range:", estimatedTimeToMaxLevel)
+        return nil
+    end
+end
+
 -- Function to update the level graph with snapshot data
 local function UpdateLevelGraph(addonInstance)
     if not levelGraphFrame or not levelGraphFrame:IsShown() or not graph then 
@@ -139,15 +222,39 @@ local function UpdateLevelGraph(addonInstance)
         return
     end
     
-    -- Prepare data points from snapshots
+    -- Prepare actual data points from snapshots
     local dataPoints = {}
     for _, snapshot in ipairs(levelSnapshots) do
         local timeInHours = snapshot.time / 3600  -- Convert seconds to hours
         table.insert(dataPoints, {timeInHours, snapshot.level})
     end
     
-    -- Add the data series to the graph (blue line)
+    -- Add the actual data series to the graph (blue line)
     graph:AddDataSeries(dataPoints, {0.2, 0.6, 1.0, 0.9})
+    
+    -- -- Calculate estimated time to max level and add as a point
+    -- local maxLevel = addonInstance.db.profile.maxLevel
+    -- local estimatedTimeToMaxLevel = CalculateTimeToMaxLevel(levelSnapshots, maxLevel)
+
+    -- if estimatedTimeToMaxLevel then
+    --     -- Extend X-axis if needed to show the estimation point
+    --     local currentXMax = 100
+    --     if estimatedTimeToMaxLevel > currentXMax then
+    --         local newXMax = math.ceil(estimatedTimeToMaxLevel / 50) * 50  -- Round up to nearest 50
+    --         graph:SetXAxis(0, newXMax)
+    --     end
+        
+    --     -- Add the estimated max level point as a separate series (red point)
+    --     -- Create multiple points around the estimation to make it more visible
+    --     local maxLevelPoints = {
+    --         {estimatedTimeToMaxLevel, maxLevel},
+    --         {estimatedTimeToMaxLevel - 0.1, maxLevel},
+    --         {estimatedTimeToMaxLevel + 0.1, maxLevel},
+    --         {estimatedTimeToMaxLevel, maxLevel - 0.1},
+    --         {estimatedTimeToMaxLevel, maxLevel + 0.1}
+    --     }
+    --     graph:AddDataSeries(maxLevelPoints, {1.0, 0.2, 0.2, 1.0})
+    -- end
 end
 
 -- Toggle the Level Graph frame visibility
@@ -167,6 +274,10 @@ end
 
 -- Explicitly show the Level Graph frame
 local function ShowLevelGraph(addonInstance)
+    local levelSnapshots = addonInstance.db.profile.levelSnapshots
+    local maxLevel = addonInstance.db.profile.maxLevel
+    local timeToMaxLevel = CalculateTimeToMaxLevel(levelSnapshots, maxLevel)
+
     if not levelGraphFrame then
         CreateLevelGraphFrame(addonInstance)
     end
@@ -189,3 +300,4 @@ addonTable.UpdateLevelGraph = UpdateLevelGraph
 addonTable.ToggleLevelGraph = ToggleLevelGraph
 addonTable.ShowLevelGraph = ShowLevelGraph
 addonTable.HideLevelGraph = HideLevelGraph
+addonTable.CalculateTimeToMaxLevel = CalculateTimeToMaxLevel
