@@ -46,10 +46,10 @@ local function FormatTimeEstimate(hours)
     return table.concat(parts, ", ")
 end
 
--- Function to calculate estimated time to reach max level using logarithmic regression
+-- Function to calculate estimated time to reach max level using recent progression rate
 local function CalculateTimeToMaxLevel(levelSnapshots, maxLevel)
     if DEBUG_ESTIMATION then
-        print("Debug: CalculateTimeToMaxLevel called (logarithmic regression)")
+        print("Debug: CalculateTimeToMaxLevel called (recent rate method)")
         print("Debug: Number of snapshots:", levelSnapshots and #levelSnapshots or 0)
         print("Debug: Max level:", maxLevel)
     end
@@ -64,9 +64,10 @@ local function CalculateTimeToMaxLevel(levelSnapshots, maxLevel)
     -- Get the latest snapshot to check current state
     local latestSnapshot = levelSnapshots[#levelSnapshots]
     local currentLevel = latestSnapshot.level
+    local currentTime = latestSnapshot.time / 3600
     
     if DEBUG_ESTIMATION then
-        print("Debug: Current level:", currentLevel)
+        print("Debug: Current level:", currentLevel, "Current time:", currentTime, "hours")
     end
     
     if currentLevel >= maxLevel then
@@ -76,155 +77,71 @@ local function CalculateTimeToMaxLevel(levelSnapshots, maxLevel)
         return nil
     end
     
-    -- Prepare data points for logarithmic regression (ln(time) vs level)
-    local validSnapshots = {}
+    -- Calculate recent leveling rate using the last few snapshots (more accurate for current pace)
+    local recentSnapshots = math.min(5, #levelSnapshots)  -- Use last 5 snapshots or all if less
+    local startIndex = #levelSnapshots - recentSnapshots + 1
     
-    -- First pass: filter out invalid time values
-    for i, snapshot in ipairs(levelSnapshots) do
-        local timeInHours = snapshot.time / 3600
-        if timeInHours > 0 then
-            table.insert(validSnapshots, snapshot)
-        else
-            if DEBUG_ESTIMATION then
-                print("Debug: Skipping point", i, "- invalid time:", timeInHours)
-            end
-        end
-    end
+    local startSnapshot = levelSnapshots[startIndex]
+    local endSnapshot = levelSnapshots[#levelSnapshots]
     
-    local n = #validSnapshots
+    local recentTimeDiff = (endSnapshot.time - startSnapshot.time) / 3600  -- hours
+    local recentLevelDiff = endSnapshot.level - startSnapshot.level
+    
     if DEBUG_ESTIMATION then
-        print("Debug: Starting logarithmic regression calculations with", n, "valid data points")
+        print("Debug: Using", recentSnapshots, "recent snapshots for rate calculation")
+        print("Debug: Recent time diff:", recentTimeDiff, "hours")
+        print("Debug: Recent level diff:", recentLevelDiff, "levels")
     end
     
-    -- Check if we have enough valid points
-    if n < 2 then
+    if recentTimeDiff <= 0 or recentLevelDiff <= 0 then
         if DEBUG_ESTIMATION then
-            print("Debug: Not enough valid data points after filtering")
+            print("Debug: Invalid recent progression data")
         end
         return nil
     end
     
-    local sumX = 0  -- sum of ln(time) values
-    local sumY = 0  -- sum of level values
-    local sumXY = 0 -- sum of (ln(time) * level)
-    local sumX2 = 0 -- sum of (ln(time)^2)
-    
-    -- Calculate sums for logarithmic regression formula: level = a * ln(time) + b
-    for i, snapshot in ipairs(validSnapshots) do
-        local timeInHours = snapshot.time / 3600
-        local level = snapshot.level
-        local lnTime = math.log(timeInHours)  -- natural logarithm of time
-        
-        if DEBUG_ESTIMATION then
-            print(string.format("Debug: Point %d - Time: %.2f hours, ln(Time): %.3f, Level: %d", i, timeInHours, lnTime, level))
-        end
-        
-        sumX = sumX + lnTime
-        sumY = sumY + level
-        sumXY = sumXY + (lnTime * level)
-        sumX2 = sumX2 + (lnTime * lnTime)
-    end
+    -- Calculate recent leveling rate (hours per level)
+    local recentRateHoursPerLevel = recentTimeDiff / recentLevelDiff
     
     if DEBUG_ESTIMATION then
-        print("Debug: Regression sums - sumX:", sumX, "sumY:", sumY, "sumXY:", sumXY, "sumX2:", sumX2)
+        print("Debug: Recent rate:", recentRateHoursPerLevel, "hours per level")
     end
     
-    -- Calculate logarithmic regression coefficients: level = a * ln(time) + b
-    local denominator = n * sumX2 - sumX * sumX
-    if DEBUG_ESTIMATION then
-        print("Debug: Denominator:", denominator)
-    end
-    
-    if denominator == 0 then
-        if DEBUG_ESTIMATION then
-            print("Debug: Cannot calculate regression - denominator is zero")
-        end
-        return nil
-    end
-    
-    local a = (n * sumXY - sumX * sumY) / denominator  -- coefficient for ln(time)
-    local b = (sumY - a * sumX) / n                    -- y-intercept
-    
-    if DEBUG_ESTIMATION then
-        print("Debug: Logarithmic regression coefficients - a:", a, "b:", b)
-    end
-    
-    -- Validate the coefficient - should be positive (leveling up with time)
-    if a <= 0 then
-        if DEBUG_ESTIMATION then
-            print("Debug: Invalid regression - coefficient is not positive:", a)
-        end
-        return nil
-    end
-    
-    -- Calculate estimated time to reach max level
-    local lnEstimatedTime = (maxLevel - b) / a
-    local estimatedTimeToMaxLevel = math.exp(lnEstimatedTime)
-    
-    if DEBUG_ESTIMATION then
-        print("Debug: ln(estimated time):", lnEstimatedTime)
-        print("Debug: Raw estimation:", estimatedTimeToMaxLevel, "hours")
-    end
-    
-    -- Additional validation: check if estimate is reasonable compared to current progress
-    local currentTime = latestSnapshot.time / 3600
-    local currentLevel = latestSnapshot.level
+    -- Calculate levels remaining
     local levelsRemaining = maxLevel - currentLevel
-    local levelsCompleted = currentLevel - 1  -- assuming started at level 1
     
-    -- Calculate a simple linear estimate for comparison
-    local averageTimePerLevel = currentTime / levelsCompleted
-    local linearEstimate = currentTime + (levelsRemaining * averageTimePerLevel)
-    
-    if DEBUG_ESTIMATION then
-        print("Debug: Current time:", currentTime, "hours")
-        print("Debug: Levels completed:", levelsCompleted, "Levels remaining:", levelsRemaining)
-        print("Debug: Average time per level:", averageTimePerLevel, "hours")
-        print("Debug: Linear estimate for comparison:", linearEstimate, "hours")
-    end
-    
-    -- Mathematical convergence towards 400 hours using weighted averaging
-    -- The closer we get to 400, the more we trust the regression
-    -- The further we are, the more we pull towards 400
-    local targetTime = 400  -- Target convergence point
-    local rawEstimate = estimatedTimeToMaxLevel
-    
-    -- Calculate distance from target as a ratio
-    local distanceRatio = math.abs(rawEstimate - targetTime) / targetTime
-    
-    -- Use a sigmoid-like function to determine blending weight
-    -- When estimate is close to 400, use more of the raw estimate
-    -- When estimate is far from 400, use more of the target
-    local blendFactor = 1 / (1 + math.exp(distanceRatio * 2))  -- Sigmoid function
-    
-    -- Apply mathematical convergence
-    local finalEstimate = (blendFactor * rawEstimate) + ((1 - blendFactor) * targetTime)
-    
-    -- Additional safeguard: if linear estimate suggests much longer, respect it partially
-    if linearEstimate > targetTime then
-        local linearWeight = math.min(0.3, (linearEstimate - targetTime) / targetTime)
-        finalEstimate = finalEstimate + (linearWeight * (linearEstimate - finalEstimate))
-    end
+    -- Estimate time based on recent rate
+    local estimatedTimeRemaining = levelsRemaining * recentRateHoursPerLevel
+    local estimatedTotalTime = currentTime + estimatedTimeRemaining
     
     if DEBUG_ESTIMATION then
-        print("Debug: Raw logarithmic estimate:", rawEstimate, "hours")
-        print("Debug: Distance ratio from 400h:", distanceRatio)
-        print("Debug: Blend factor (closer to 1 = trust regression more):", blendFactor)
-        print("Debug: Convergence-adjusted estimate:", finalEstimate, "hours")
-        print("Debug: Linear estimate:", linearEstimate, "hours")
-        print("Debug: Final estimation:", finalEstimate, "hours")
-        print("Debug: Formatted estimation:", FormatTimeEstimate(finalEstimate))
+        print("Debug: Levels remaining:", levelsRemaining)
+        print("Debug: Estimated time remaining:", estimatedTimeRemaining, "hours")
+        print("Debug: Estimated total time:", estimatedTotalTime, "hours")
     end
     
-    -- Accept estimates within a reasonable range around our target
-    if finalEstimate > 0 and finalEstimate <= 600 then  -- Allow some flexibility above 400
+    -- For comparison, also calculate overall average rate
+    local totalTime = currentTime
+    local totalLevels = currentLevel - 1  -- assuming started at level 1
+    local overallRate = totalTime / totalLevels
+    local overallEstimate = currentTime + (levelsRemaining * overallRate)
+    
+    if DEBUG_ESTIMATION then
+        print("Debug: Overall rate:", overallRate, "hours per level")
+        print("Debug: Overall estimate:", overallEstimate, "hours")
+        print("Debug: Final estimation:", estimatedTotalTime, "hours")
+        print("Debug: Formatted estimation:", FormatTimeEstimate(estimatedTotalTime))
+    end
+    
+    -- Accept reasonable estimates
+    if estimatedTotalTime > currentTime and estimatedTotalTime <= 1000 then  -- Must be greater than current time and reasonable
         if DEBUG_ESTIMATION then
-            print("Debug: Returning convergence-adjusted estimation:", FormatTimeEstimate(finalEstimate))
+            print("Debug: Returning estimation:", FormatTimeEstimate(estimatedTotalTime))
         end
-        return finalEstimate
+        return estimatedTotalTime
     else
         if DEBUG_ESTIMATION then
-            print("Debug: Estimation out of reasonable range:", FormatTimeEstimate(finalEstimate))
+            print("Debug: Estimation out of reasonable range:", FormatTimeEstimate(estimatedTotalTime))
         end
         return nil
     end
@@ -283,19 +200,21 @@ local function CreateLevelGraphFrame(addonInstance)
     -- Create fake levelSnapshots for debugging if none exist
     if FAKE_SNAPSHOTS then
         levelSnapshots = {
-            {time = 3600, level = 5},      -- 1 hour, level 5
-            {time = 7200, level = 8},      -- 2 hours, level 8
-            {time = 14400, level = 12},    -- 4 hours, level 12
-            {time = 25200, level = 16},    -- 7 hours, level 16
-            {time = 39600, level = 20},    -- 11 hours, level 20
-            {time = 57600, level = 24},    -- 16 hours, level 24
-            {time = 79200, level = 28},    -- 22 hours, level 28
-            {time = 104400, level = 32},   -- 29 hours, level 32
-            {time = 133200, level = 36},   -- 37 hours, level 36
-            {time = 165600, level = 40},   -- 46 hours, level 40
-            {time = 201600, level = 44},   -- 56 hours, level 44
-            {time = 241200, level = 48},   -- 67 hours, level 48
-            {time = 284400, level = 52},   -- 79 hours, level 52
+            {time = 1800, level = 5},      -- 0.5 hour, level 5 (0.1h per level for 1-5)
+            {time = 4500, level = 8},      -- 1.25 hours, level 8 (0.25h per level for 6-8)
+            {time = 9000, level = 12},     -- 2.5 hours, level 12 (0.38h per level for 9-12)
+            {time = 15300, level = 16},    -- 4.25 hours, level 16 (0.56h per level for 13-16)
+            {time = 24300, level = 20},    -- 6.75 hours, level 20 (0.75h per level for 17-20)
+            {time = 36900, level = 24},    -- 10.25 hours, level 24 (0.94h per level for 21-24)
+            {time = 54000, level = 28},    -- 15 hours, level 28 (1.19h per level for 25-28)
+            {time = 76500, level = 32},    -- 21.25 hours, level 32 (1.44h per level for 29-32)
+            {time = 105300, level = 36},   -- 29.25 hours, level 36 (1.75h per level for 33-36)
+            {time = 141300, level = 40},   -- 39.25 hours, level 40 (2.25h per level for 37-40)
+            {time = 185400, level = 44},   -- 51.5 hours, level 44 (3.06h per level for 41-44)
+            {time = 239400, level = 48},   -- 66.5 hours, level 48 (3.75h per level for 45-48)
+            {time = 309600, level = 50},   -- 86 hours, level 50 (9.75h per level for 49-50)
+            {time = 370800, level = 51},   -- 103 hours, level 51 (17h for level 51)
+            {time = 432000, level = 52},   -- 120 hours, level 52 (17h for level 52)
         }
         if DEBUG_ESTIMATION then
             print("Debug: Using fake levelSnapshots for testing")
