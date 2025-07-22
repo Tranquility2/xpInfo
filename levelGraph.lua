@@ -5,6 +5,9 @@ local levelGraphFrame
 local LibGraph = LibStub("LibGraph-2.0")
 local graph
 
+-- Debug flag for CalculateTimeToMaxLevel function
+local DEBUG_ESTIMATION = false
+
 -- Function to create the level progression graph frame
 local function CreateLevelGraphFrame(addonInstance)
     local L = addonInstance.L
@@ -124,14 +127,49 @@ local function CreateLevelGraphFrame(addonInstance)
     return levelGraphFrame
 end
 
--- Function to calculate estimated time to reach max level using linear regression
+-- Function to format time in hours to a readable string
+local function FormatTimeEstimate(hours)
+    if not hours or hours <= 0 then
+        return "N/A"
+    end
+    
+    local days = math.floor(hours / 24)
+    local remainingHours = math.floor(hours % 24)
+    local minutes = math.floor((hours % 1) * 60)
+    
+    local parts = {}
+    
+    if days > 0 then
+        table.insert(parts, days .. (days == 1 and " day" or " days"))
+    end
+    
+    if remainingHours > 0 then
+        table.insert(parts, remainingHours .. (remainingHours == 1 and " hour" or " hours"))
+    end
+    
+    if minutes > 0 and days == 0 then  -- Only show minutes if less than a day
+        table.insert(parts, minutes .. (minutes == 1 and " minute" or " minutes"))
+    end
+    
+    if #parts == 0 then
+        return "Less than 1 minute"
+    end
+    
+    return table.concat(parts, ", ")
+end
+
+-- Function to calculate estimated time to reach max level using logarithmic regression
 local function CalculateTimeToMaxLevel(levelSnapshots, maxLevel)
-    print("Debug: CalculateTimeToMaxLevel called")
-    print("Debug: Number of snapshots:", levelSnapshots and #levelSnapshots or 0)
-    print("Debug: Max level:", maxLevel)
+    if DEBUG_ESTIMATION then
+        print("Debug: CalculateTimeToMaxLevel called (logarithmic regression)")
+        print("Debug: Number of snapshots:", levelSnapshots and #levelSnapshots or 0)
+        print("Debug: Max level:", maxLevel)
+    end
     
     if not levelSnapshots or #levelSnapshots < 2 then
-        print("Debug: Insufficient snapshots (need at least 2)")
+        if DEBUG_ESTIMATION then
+            print("Debug: Insufficient snapshots (need at least 2)")
+        end
         return nil
     end
     
@@ -139,70 +177,148 @@ local function CalculateTimeToMaxLevel(levelSnapshots, maxLevel)
     local latestSnapshot = levelSnapshots[#levelSnapshots]
     local currentLevel = latestSnapshot.level
     
-    print("Debug: Current level:", currentLevel)
+    if DEBUG_ESTIMATION then
+        print("Debug: Current level:", currentLevel)
+    end
     
     if currentLevel >= maxLevel then
-        print("Debug: Already at or above max level")
+        if DEBUG_ESTIMATION then
+            print("Debug: Already at or above max level")
+        end
         return nil
     end
     
-    -- Prepare data points for linear regression (time vs level)
-    local n = #levelSnapshots
-    local sumX = 0  -- sum of time values (hours)
-    local sumY = 0  -- sum of level values
-    local sumXY = 0 -- sum of (time * level)
-    local sumX2 = 0 -- sum of (time^2)
+    -- Prepare data points for logarithmic regression (ln(time) vs level)
+    local validSnapshots = {}
     
-    print("Debug: Starting regression calculations with", n, "data points")
-    
-    -- Calculate sums for linear regression formula
+    -- First pass: filter out invalid time values
     for i, snapshot in ipairs(levelSnapshots) do
         local timeInHours = snapshot.time / 3600
-        local level = snapshot.level
-        
-        print(string.format("Debug: Point %d - Time: %.2f hours, Level: %d", i, timeInHours, level))
-        
-        sumX = sumX + timeInHours
-        sumY = sumY + level
-        sumXY = sumXY + (timeInHours * level)
-        sumX2 = sumX2 + (timeInHours * timeInHours)
+        if timeInHours > 0 then
+            table.insert(validSnapshots, snapshot)
+        else
+            if DEBUG_ESTIMATION then
+                print("Debug: Skipping point", i, "- invalid time:", timeInHours)
+            end
+        end
     end
     
-    print("Debug: Regression sums - sumX:", sumX, "sumY:", sumY, "sumXY:", sumXY, "sumX2:", sumX2)
+    local n = #validSnapshots
+    if DEBUG_ESTIMATION then
+        print("Debug: Starting logarithmic regression calculations with", n, "valid data points")
+    end
     
-    -- Calculate linear regression coefficients: level = a * time + b
+    -- Check if we have enough valid points
+    if n < 2 then
+        if DEBUG_ESTIMATION then
+            print("Debug: Not enough valid data points after filtering")
+        end
+        return nil
+    end
+    
+    local sumX = 0  -- sum of ln(time) values
+    local sumY = 0  -- sum of level values
+    local sumXY = 0 -- sum of (ln(time) * level)
+    local sumX2 = 0 -- sum of (ln(time)^2)
+    
+    -- Calculate sums for logarithmic regression formula: level = a * ln(time) + b
+    for i, snapshot in ipairs(validSnapshots) do
+        local timeInHours = snapshot.time / 3600
+        local level = snapshot.level
+        local lnTime = math.log(timeInHours)  -- natural logarithm of time
+        
+        if DEBUG_ESTIMATION then
+            print(string.format("Debug: Point %d - Time: %.2f hours, ln(Time): %.3f, Level: %d", i, timeInHours, lnTime, level))
+        end
+        
+        sumX = sumX + lnTime
+        sumY = sumY + level
+        sumXY = sumXY + (lnTime * level)
+        sumX2 = sumX2 + (lnTime * lnTime)
+    end
+    
+    if DEBUG_ESTIMATION then
+        print("Debug: Regression sums - sumX:", sumX, "sumY:", sumY, "sumXY:", sumXY, "sumX2:", sumX2)
+    end
+    
+    -- Calculate logarithmic regression coefficients: level = a * ln(time) + b
     local denominator = n * sumX2 - sumX * sumX
-    print("Debug: Denominator:", denominator)
+    if DEBUG_ESTIMATION then
+        print("Debug: Denominator:", denominator)
+    end
     
     if denominator == 0 then
-        print("Debug: Cannot calculate regression - denominator is zero (all times are the same)")
-        return nil -- Cannot calculate regression (all times are the same)
+        if DEBUG_ESTIMATION then
+            print("Debug: Cannot calculate regression - denominator is zero")
+        end
+        return nil
     end
     
-    local a = (n * sumXY - sumX * sumY) / denominator  -- slope (levels per hour)
-    local b = (sumY - a * sumX) / n                    -- y-intercept (starting level offset)
+    local a = (n * sumXY - sumX * sumY) / denominator  -- coefficient for ln(time)
+    local b = (sumY - a * sumX) / n                    -- y-intercept
     
-    print("Debug: Regression coefficients - slope (a):", a, "y-intercept (b):", b)
+    if DEBUG_ESTIMATION then
+        print("Debug: Logarithmic regression coefficients - a:", a, "b:", b)
+    end
     
-    -- Validate the slope - should be positive (leveling up over time)
+    -- Validate the coefficient - should be positive (leveling up with time)
     if a <= 0 then
-        print("Debug: Invalid regression - slope is not positive:", a)
-        return nil -- Invalid regression (not leveling up)
+        if DEBUG_ESTIMATION then
+            print("Debug: Invalid regression - coefficient is not positive:", a)
+        end
+        return nil
     end
     
     -- Calculate estimated time to reach max level
-    -- Solve: maxLevel = a * estimatedTime + b
-    -- estimatedTime = (maxLevel - b) / a
-    local estimatedTimeToMaxLevel = (maxLevel - b) / a
+    local lnEstimatedTime = (maxLevel - b) / a
+    local estimatedTimeToMaxLevel = math.exp(lnEstimatedTime)
     
-    print("Debug: Raw estimation:", estimatedTimeToMaxLevel, "hours")
+    if DEBUG_ESTIMATION then
+        print("Debug: ln(estimated time):", lnEstimatedTime)
+        print("Debug: Raw estimation:", estimatedTimeToMaxLevel, "hours")
+    end
     
-    -- Accept reasonable estimates (up to 1000 hours)
-    if estimatedTimeToMaxLevel > 0 and estimatedTimeToMaxLevel <= 1000 then
-        print("Debug: Returning valid estimation:", estimatedTimeToMaxLevel, "hours")
-        return estimatedTimeToMaxLevel
+    -- Additional validation: check if estimate is reasonable compared to current progress
+    local currentTime = latestSnapshot.time / 3600
+    local currentLevel = latestSnapshot.level
+    local levelsRemaining = maxLevel - currentLevel
+    local levelsCompleted = currentLevel - 1  -- assuming started at level 1
+    
+    -- Calculate a simple linear estimate for comparison
+    local averageTimePerLevel = currentTime / levelsCompleted
+    local linearEstimate = currentTime + (levelsRemaining * averageTimePerLevel)
+    
+    if DEBUG_ESTIMATION then
+        print("Debug: Current time:", currentTime, "hours")
+        print("Debug: Levels completed:", levelsCompleted, "Levels remaining:", levelsRemaining)
+        print("Debug: Average time per level:", averageTimePerLevel, "hours")
+        print("Debug: Linear estimate for comparison:", linearEstimate, "hours")
+    end
+    
+    -- If logarithmic estimate is more than 3x the linear estimate, use a capped version
+    local finalEstimate = estimatedTimeToMaxLevel
+    if estimatedTimeToMaxLevel > linearEstimate * 3 then
+        finalEstimate = linearEstimate * 2  -- Use 2x linear as a more conservative estimate
+        if DEBUG_ESTIMATION then
+            print("Debug: Logarithmic estimate too high, using conservative estimate:", finalEstimate, "hours")
+        end
+    end
+    
+    if DEBUG_ESTIMATION then
+        print("Debug: Final estimation:", finalEstimate, "hours")
+        print("Debug: Formatted estimation:", FormatTimeEstimate(finalEstimate))
+    end
+    
+    -- Accept reasonable estimates (up to 500 hours, reduced from 1000)
+    if finalEstimate > 0 and finalEstimate <= 500 then
+        if DEBUG_ESTIMATION then
+            print("Debug: Returning valid estimation:", FormatTimeEstimate(finalEstimate))
+        end
+        return finalEstimate
     else
-        print("Debug: Estimation out of reasonable range:", estimatedTimeToMaxLevel)
+        if DEBUG_ESTIMATION then
+            print("Debug: Estimation out of reasonable range:", FormatTimeEstimate(finalEstimate))
+        end
         return nil
     end
 end
@@ -274,10 +390,6 @@ end
 
 -- Explicitly show the Level Graph frame
 local function ShowLevelGraph(addonInstance)
-    local levelSnapshots = addonInstance.db.profile.levelSnapshots
-    local maxLevel = addonInstance.db.profile.maxLevel
-    local timeToMaxLevel = CalculateTimeToMaxLevel(levelSnapshots, maxLevel)
-
     if not levelGraphFrame then
         CreateLevelGraphFrame(addonInstance)
     end
