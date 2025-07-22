@@ -6,7 +6,12 @@ local LibGraph = LibStub("LibGraph-2.0")
 local graph
 
 -- Debug flag for CalculateTimeToMaxLevel function
-local DEBUG_ESTIMATION = false
+local DEBUG_ESTIMATION = true
+
+-- Global variables for level progression data
+local levelSnapshots
+local maxLevel
+local estimatedTimeToMaxLevel
 
 -- Function to format time in hours to a readable string
 local function FormatTimeEstimate(hours)
@@ -176,24 +181,43 @@ local function CalculateTimeToMaxLevel(levelSnapshots, maxLevel)
         print("Debug: Linear estimate for comparison:", linearEstimate, "hours")
     end
     
-    -- If logarithmic estimate is more than 3x the linear estimate, use a capped version
-    local finalEstimate = estimatedTimeToMaxLevel
-    if estimatedTimeToMaxLevel > linearEstimate * 3 then
-        finalEstimate = linearEstimate * 2  -- Use 2x linear as a more conservative estimate
-        if DEBUG_ESTIMATION then
-            print("Debug: Logarithmic estimate too high, using conservative estimate:", finalEstimate, "hours")
-        end
+    -- Mathematical convergence towards 400 hours using weighted averaging
+    -- The closer we get to 400, the more we trust the regression
+    -- The further we are, the more we pull towards 400
+    local targetTime = 400  -- Target convergence point
+    local rawEstimate = estimatedTimeToMaxLevel
+    
+    -- Calculate distance from target as a ratio
+    local distanceRatio = math.abs(rawEstimate - targetTime) / targetTime
+    
+    -- Use a sigmoid-like function to determine blending weight
+    -- When estimate is close to 400, use more of the raw estimate
+    -- When estimate is far from 400, use more of the target
+    local blendFactor = 1 / (1 + math.exp(distanceRatio * 2))  -- Sigmoid function
+    
+    -- Apply mathematical convergence
+    local finalEstimate = (blendFactor * rawEstimate) + ((1 - blendFactor) * targetTime)
+    
+    -- Additional safeguard: if linear estimate suggests much longer, respect it partially
+    if linearEstimate > targetTime then
+        local linearWeight = math.min(0.3, (linearEstimate - targetTime) / targetTime)
+        finalEstimate = finalEstimate + (linearWeight * (linearEstimate - finalEstimate))
     end
     
     if DEBUG_ESTIMATION then
+        print("Debug: Raw logarithmic estimate:", rawEstimate, "hours")
+        print("Debug: Distance ratio from 400h:", distanceRatio)
+        print("Debug: Blend factor (closer to 1 = trust regression more):", blendFactor)
+        print("Debug: Convergence-adjusted estimate:", finalEstimate, "hours")
+        print("Debug: Linear estimate:", linearEstimate, "hours")
         print("Debug: Final estimation:", finalEstimate, "hours")
         print("Debug: Formatted estimation:", FormatTimeEstimate(finalEstimate))
     end
     
-    -- Accept reasonable estimates (up to 500 hours, reduced from 1000)
-    if finalEstimate > 0 and finalEstimate <= 500 then
+    -- Accept estimates within a reasonable range around our target
+    if finalEstimate > 0 and finalEstimate <= 600 then  -- Allow some flexibility above 400
         if DEBUG_ESTIMATION then
-            print("Debug: Returning valid estimation:", FormatTimeEstimate(finalEstimate))
+            print("Debug: Returning convergence-adjusted estimation:", FormatTimeEstimate(finalEstimate))
         end
         return finalEstimate
     else
@@ -252,15 +276,15 @@ local function CreateLevelGraphFrame(addonInstance)
     graph = LibGraph:CreateGraphLine("XpInfoLevelProgressGraph", levelGraphFrame, "CENTER", "CENTER", 0, 0, 400, 250)
     
     -- Calculate dynamic X-axis range based on estimated time to max level
-    local levelSnapshots = addonInstance.db.profile.levelSnapshots
-    local maxLevel = addonInstance.db.profile.maxLevel or 60
-    local timeToMaxLevel = CalculateTimeToMaxLevel(levelSnapshots, maxLevel)
+    levelSnapshots = addonInstance.db.profile.levelSnapshots
+    maxLevel = addonInstance.db.profile.maxLevel or 60
+    estimatedTimeToMaxLevel = CalculateTimeToMaxLevel(levelSnapshots, maxLevel)
     
     -- Determine X-axis maximum (minimum 100 hours)
     local xAxisMax = 100  -- Default minimum
-    if timeToMaxLevel and timeToMaxLevel > 0 then
+    if estimatedTimeToMaxLevel and estimatedTimeToMaxLevel > 0 then
         -- Round up to nearest 50 hours, with minimum of 100
-        xAxisMax = math.max(100, math.ceil(timeToMaxLevel / 50) * 50)
+        xAxisMax = math.max(100, math.ceil(estimatedTimeToMaxLevel / 50) * 50)
     end
     
     -- Set dynamic axis ranges: X-axis 0 to calculated max, Y-axis 1 to maxLevel
@@ -335,6 +359,49 @@ local function CreateLevelGraphFrame(addonInstance)
     return levelGraphFrame
 end
 
+-- Function to add logarithmic estimation curve to the graph
+local function AddEstimationCurveToGraph()
+    if not estimatedTimeToMaxLevel or estimatedTimeToMaxLevel <= 0 or not maxLevel then
+        return
+    end
+    
+    -- Get current progress from the latest snapshot
+    local latestSnapshot = levelSnapshots[#levelSnapshots]
+    local currentTime = latestSnapshot.time / 3600
+    local currentLevel = latestSnapshot.level
+    
+    -- Create logarithmic estimation curve from current point to max level point
+    local estimationPoints = {}
+    
+    -- Calculate the logarithmic regression coefficients for the curve
+    -- We'll approximate the curve by sampling points along the logarithmic function
+    local timeStep = (estimatedTimeToMaxLevel - currentTime) / 20  -- 20 points for smooth curve
+    
+    for i = 0, 20 do
+        local t = currentTime + (i * timeStep)
+        if t > 0 then  -- Ensure positive time for logarithm
+            -- Use a logarithmic interpolation between current and estimated points
+            local progress = i / 20  -- 0 to 1
+            
+            -- Logarithmic progression: slower growth initially, faster later
+            local logProgress = math.log(1 + progress * (math.exp(1) - 1)) / 1  -- Normalized log curve
+            local level = currentLevel + logProgress * (maxLevel - currentLevel)
+            
+            table.insert(estimationPoints, {t, level})
+        end
+    end
+    
+    -- Ensure we end exactly at the estimation point
+    table.insert(estimationPoints, {estimatedTimeToMaxLevel, maxLevel})
+    
+    -- Add the logarithmic estimation curve to the graph (red curved line)
+    graph:AddDataSeries(estimationPoints, {1.0, 0.2, 0.2, 0.8})
+    
+    -- Also add a point at the estimation to make it more visible
+    local estimationPoint = {{estimatedTimeToMaxLevel, maxLevel}}
+    graph:AddDataSeries(estimationPoint, {1.0, 0.0, 0.0, 1.0})
+end
+
 -- Function to update the level graph with snapshot data
 local function UpdateLevelGraph(addonInstance)
     if not levelGraphFrame or not levelGraphFrame:IsShown() or not graph then 
@@ -360,29 +427,8 @@ local function UpdateLevelGraph(addonInstance)
     -- Add the actual data series to the graph (blue line)
     graph:AddDataSeries(dataPoints, {0.2, 0.6, 1.0, 0.9})
     
-    -- -- Calculate estimated time to max level and add as a point
-    -- local maxLevel = addonInstance.db.profile.maxLevel
-    -- local estimatedTimeToMaxLevel = CalculateTimeToMaxLevel(levelSnapshots, maxLevel)
-
-    -- if estimatedTimeToMaxLevel then
-    --     -- Extend X-axis if needed to show the estimation point
-    --     local currentXMax = 100
-    --     if estimatedTimeToMaxLevel > currentXMax then
-    --         local newXMax = math.ceil(estimatedTimeToMaxLevel / 50) * 50  -- Round up to nearest 50
-    --         graph:SetXAxis(0, newXMax)
-    --     end
-        
-    --     -- Add the estimated max level point as a separate series (red point)
-    --     -- Create multiple points around the estimation to make it more visible
-    --     local maxLevelPoints = {
-    --         {estimatedTimeToMaxLevel, maxLevel},
-    --         {estimatedTimeToMaxLevel - 0.1, maxLevel},
-    --         {estimatedTimeToMaxLevel + 0.1, maxLevel},
-    --         {estimatedTimeToMaxLevel, maxLevel - 0.1},
-    --         {estimatedTimeToMaxLevel, maxLevel + 0.1}
-    --     }
-    --     graph:AddDataSeries(maxLevelPoints, {1.0, 0.2, 0.2, 1.0})
-    -- end
+    -- Add estimation curve if we have a valid estimate
+    AddEstimationCurveToGraph()
 end
 
 -- Toggle the Level Graph frame visibility
