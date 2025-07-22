@@ -7,6 +7,8 @@ local graph
 
 -- Debug flag for CalculateTimeToMaxLevel function
 local DEBUG_ESTIMATION = true
+-- Flag to use fake snapshots for testing
+local FAKE_SNAPSHOTS = true
 
 -- Global variables for level progression data
 local levelSnapshots
@@ -277,6 +279,29 @@ local function CreateLevelGraphFrame(addonInstance)
     
     -- Calculate dynamic X-axis range based on estimated time to max level
     levelSnapshots = addonInstance.db.profile.levelSnapshots
+    
+    -- Create fake levelSnapshots for debugging if none exist
+    if FAKE_SNAPSHOTS then
+        levelSnapshots = {
+            {time = 3600, level = 5},      -- 1 hour, level 5
+            {time = 7200, level = 8},      -- 2 hours, level 8
+            {time = 14400, level = 12},    -- 4 hours, level 12
+            {time = 25200, level = 16},    -- 7 hours, level 16
+            {time = 39600, level = 20},    -- 11 hours, level 20
+            {time = 57600, level = 24},    -- 16 hours, level 24
+            {time = 79200, level = 28},    -- 22 hours, level 28
+            {time = 104400, level = 32},   -- 29 hours, level 32
+            {time = 133200, level = 36},   -- 37 hours, level 36
+            {time = 165600, level = 40},   -- 46 hours, level 40
+            {time = 201600, level = 44},   -- 56 hours, level 44
+            {time = 241200, level = 48},   -- 67 hours, level 48
+            {time = 284400, level = 52},   -- 79 hours, level 52
+        }
+        if DEBUG_ESTIMATION then
+            print("Debug: Using fake levelSnapshots for testing")
+        end
+    end
+    
     maxLevel = addonInstance.db.profile.maxLevel or 60
     estimatedTimeToMaxLevel = CalculateTimeToMaxLevel(levelSnapshots, maxLevel)
     
@@ -411,8 +436,6 @@ local function UpdateLevelGraph(addonInstance)
     -- Clear the graph
     graph:ResetData()
     
-    -- Get level snapshots from the player's profile
-    local levelSnapshots = addonInstance.db.profile.levelSnapshots
     if not levelSnapshots or #levelSnapshots < 1 then
         return
     end
