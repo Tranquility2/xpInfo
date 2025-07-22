@@ -6,9 +6,9 @@ local LibGraph = LibStub("LibGraph-2.0")
 local graph
 
 -- Debug flag for CalculateTimeToMaxLevel function
-local DEBUG_ESTIMATION = true
+local DEBUG_ESTIMATION = false
 -- Flag to use fake snapshots for testing
-local FAKE_SNAPSHOTS = true
+local FAKE_SNAPSHOTS = false
 
 -- Global variables for level progression data
 local levelSnapshots
