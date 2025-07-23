@@ -4,12 +4,12 @@ A comprehensive World of Warcraft Classic addon that tracks your character's exp
 
 ## Key Features
 
-- **📊 Stats Frame** - XP tracking, progression metrics, and time estimates
-- **📈 Level Graph** - Visual timeline of your leveling progress  
-- **⚡ XP Bar** - Standalone movable XP bar with detailed tooltips
-- **🗺️ Minimap Icon** - Quick access to all features
-- **🧮 Smart Calculations** - Linear regression for accurate time predictions
-- **📱 Data Management** - Historical snapshots and progression analysis
+- 📊 Stats Frame - XP tracking, progression metrics, and time estimates
+- 📈 Level Graph - Visual timeline of your leveling progress  
+- ⚡ XP Bar - Standalone movable XP bar with detailed tooltips
+- 🗺️ Minimap Icon - Quick access to all features
+- 🧮 Recent Rate Estimation - Time-to-max-level is now calculated using your recent leveling pace (last 5 snapshots), for more realistic and responsive predictions
+- 📱 Data Management - Historical snapshots and progression analysis
 
 ## Quick Start
 
@@ -35,8 +35,9 @@ Visual chart of your leveling timeline with configurable max level (10-80, defau
 ### Standalone XP Bar  
 Clean XP bar with rested XP overlay. Click to toggle stats, right-click to toggle graph.
 
-### Smart Predictions
-Uses linear regression on recent XP data to provide accurate time estimates that improve as you play.
+### Time-to-Max-Level Estimation
+- Uses your recent leveling rate (last 5 snapshots) for a realistic, up-to-date estimate
+- No more blending or convergence to fixed values—estimates reflect your actual pace
 
 ## Configuration
 
@@ -57,5 +58,3 @@ Access via `/xpi config`:
 ---
 
 📖 **For detailed documentation, algorithms, troubleshooting, and technical information, see [Details.md](Details.md)**
-
-**Author**: Roy Moore | **Version**: 1.0.0

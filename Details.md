@@ -83,48 +83,41 @@ Each snapshot includes:
 
 ## Algorithms
 
-### Linear Regression for Time Prediction
+### Recent Rate Estimation for Time Prediction
 
-The addon uses linear regression to predict leveling time based on recent progression:
+The addon now estimates time-to-max-level using your recent leveling pace:
+- Uses the last 5 level snapshots (or all if fewer) to calculate your average hours per level.
+- Multiplies this rate by the number of levels remaining to estimate total time required.
+- No blending, convergence, or regression is used—estimates reflect your actual recent pace.
+- If insufficient data is available (fewer than 2 snapshots), no estimate is shown.
 
-```lua
-function calculateEstimatedMaxLevel(levelSnapshots, currentLevel, maxLevel)
-    if currentLevel >= maxLevel then return 0 end
-    
-    -- Collect recent data points (level vs time)
-    local dataPoints = {}
-    for timestamp, snapshot in pairs(levelSnapshots) do
-        if snapshot.level >= currentLevel - 5 then  -- Recent levels only
-            table.insert(dataPoints, {
-                x = snapshot.playedTime or 0,
-                y = snapshot.level
-            })
-        end
-    end
-    
-    -- Require minimum data for accuracy
-    if #dataPoints < 2 then return nil end
-    
-    -- Calculate linear regression
-    local sumX, sumY, sumXY, sumX2 = 0, 0, 0, 0
-    for _, point in ipairs(dataPoints) do
-        sumX = sumX + point.x
-        sumY = sumY + point.y  
-        sumXY = sumXY + (point.x * point.y)
-        sumX2 = sumX2 + (point.x * point.x)
-    end
-    
-    local n = #dataPoints
-    local slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX)
-    local intercept = (sumY - slope * sumX) / n
-    
-    -- Project time to reach max level
-    local timeToMaxLevel = (maxLevel - intercept) / slope
-    local currentTime = GetTime()
-    
-    return math.max(0, timeToMaxLevel - currentTime)
-end
+**Debugging & Testing:**
+- `DEBUG_ESTIMATION` flag: Enables detailed debug output in the chat window for development and troubleshooting.
+- `FAKE_SNAPSHOTS` flag: Populates the addon with realistic fake data for development/testing. This data simulates a typical WoW Classic leveling curve.
+
+#### Pseudocode:
+
 ```
+function CalculateTimeToMaxLevel(snapshots, maxLevel):
+    if not enough snapshots:
+        return nil
+    recent = last 5 snapshots (or all if fewer)
+    start = first of recent
+    end = last of recent
+    recentTime = (end.time - start.time) in hours
+    recentLevels = end.level - start.level
+    if recentTime <= 0 or recentLevels <= 0:
+        return nil
+    hoursPerLevel = recentTime / recentLevels
+    levelsLeft = maxLevel - end.level
+    timeRemaining = levelsLeft * hoursPerLevel
+    totalEstimate = (end.time in hours) + timeRemaining
+    return totalEstimate  // total hours played at max level
+```
+
+Note: To get the time remaining from now, subtract your current played time (in hours) from the result.
+
+---
 
 ### XP Efficiency Calculation
 
@@ -611,6 +604,7 @@ Contributions are welcome! Please open an issue or submit a pull request on GitH
 
 ### Version History
 
+- **1.1.2** - Recent rate estimation replaces regression/convergence; debug and fake data flags documented; documentation and UI updated for clarity
 - **1.0.0** - Initial release with core functionality
 
 ---

@@ -2,7 +2,7 @@
 ## Title: xpInfo
 ## Notes: Displays current player progression, XP, and time to level.
 ## Author: Roy Moore
-## Version: 1.0.0
+## Version: 1.1.2
 ## SavedVariables: xpInfoDB
 ## OptionalDeps: AceConfig-3.0, AceConfigDialog-3.0, AceDBOptions-3.0
 ## X-Embeds: Ace3 # For other embedded Ace libraries like AceGUI, AceDB, etc.
