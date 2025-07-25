@@ -18,6 +18,4 @@ externals:
 ignore:
   - ".github"
   - ".vscode"
-  - "Details.md"
-  - "README.md"
   - "images"

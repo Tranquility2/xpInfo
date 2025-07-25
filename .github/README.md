@@ -3,12 +3,12 @@
 A comprehensive World of Warcraft Classic addon that tracks your character's experience progression, leveling efficiency, and provides detailed statistics and visualizations.
 
 <p align="center" width="100%">
-  <img src="images/graph.png" alt="Level Progression Graph" />
+  <img src="../images/graph.png" alt="Level Progression Graph" />
   <br><em>Get a visual timeline of your leveling progress</em>
 </p>
 
 <p align="center" width="100%">
-  <img src="images/info.png" alt="Stats Frame Example" />
+  <img src="../images/info.png" alt="Stats Frame Example" />
   <br><em>Some interesting states when overing the XP bar</em>
 </p>
 
