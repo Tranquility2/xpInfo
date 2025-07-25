@@ -23,4 +23,3 @@ src/minimap.lua
 src/bar.lua
 src/graph.lua
 src/stats.lua
-src/debug.lua
