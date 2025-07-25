@@ -19,3 +19,4 @@ ignore:
   - ".github"
   - ".vscode"
   - "images"
+  - "LICENSE"
