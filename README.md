@@ -65,6 +65,10 @@ Access via `/xpi config`:
 - **Hardcore**: Compatible ✅
 - **Retail**: Not Tested ❌
 
----
 
-📖 **For detailed documentation, algorithms, troubleshooting, and technical information, see [Details.md](Details.md)**
+## Package Management
+This project uses a `.pkgmeta` file to manage external libraries and dependencies. 
+This file ensures that the correct versions of libraries are used and simplifies the process of updating them.
+
+## More Information
+For detailed documentation, algorithms, troubleshooting, and technical information, see [Details.md](Details.md)
