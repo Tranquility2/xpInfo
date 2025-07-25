@@ -1,7 +1,7 @@
 local addonName, addonTable = ...
 local addon = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0", "AceEvent-3.0")
 
--- Localization: L will be populated by locale.lua
+-- Localization: L will be populated by Locales/enUS.lua
 local L = LibStub("AceLocale-3.0"):GetLocale(addonName)    -- Default database values
 -- Defaults for the addon database
 local defaults = {

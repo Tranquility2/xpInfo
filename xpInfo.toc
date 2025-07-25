@@ -7,14 +7,15 @@
 ## OptionalDeps: AceConfig-3.0, AceConfigDialog-3.0, AceDBOptions-3.0
 ## X-Embeds: Ace3 # For other embedded Ace libraries like AceGUI, AceDB, etc.
 
-libs/embeds.xml
+embeds.xml
 
-locale.lua
-xpInfo.lua
-options.lua
-cli.lua
-snapshots.lua
-minimap.lua
-xpBar.lua
-levelGraph.lua
-stats.lua
+Locales/enUS.lua
+src/main.lua
+src/options.lua
+src/cli.lua
+src/snapshots.lua
+src/minimap.lua
+src/bar.lua
+src/graph.lua
+src/stats.lua
+src/debug.lua

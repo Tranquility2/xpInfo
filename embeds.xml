@@ -24,6 +24,4 @@
   <!-- Graph Library -->
   <Script file="LibGraph-2.0\LibGraph-2.0\LibGraph-2.0.lua"/>
 
-  <!-- Optional compatibility script -->
-  <Script file="compatibility.lua"/>
 </Ui>

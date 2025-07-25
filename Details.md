@@ -359,7 +359,7 @@ end)
 
 ### Locale System
 
-Centralized localization in `locale.lua`:
+Centralized localization in `Locales/enUS.lua`:
 
 ```lua
 local L = {}
