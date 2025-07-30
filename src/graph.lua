@@ -355,6 +355,7 @@ local function ToggleLevelGraph(addonInstance)
         levelGraphFrame:Show()
         addonInstance.db.profile.showLevelGraph = true
         UpdateLevelGraph(addonInstance)
+        print("Estimated time remaining to max level: " .. (estimatedTimeToMaxLevel and utils.FormatTimeEstimate(estimatedTimeToMaxLevel) or "N/A"))
     end
 end
 
