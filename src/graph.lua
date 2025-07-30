@@ -15,6 +15,7 @@ local FAKE_SNAPSHOTS = false
 local levelSnapshots
 local maxLevel
 local estimatedTimeToMaxLevel
+local xAxisMax
 
 -- Function to calculate estimated time to reach max level using recent progression rate
 local function CalculateTimeToMaxLevel(levelSnapshots, maxLevel)
@@ -195,7 +196,7 @@ local function CreateLevelGraphFrame(addonInstance)
     estimatedTimeToMaxLevel = CalculateTimeToMaxLevel(levelSnapshots, maxLevel)
     
     -- Determine X-axis maximum (minimum 100 hours)
-    local xAxisMax = 100  -- Default minimum
+    xAxisMax = 100  -- Default minimum
     if estimatedTimeToMaxLevel and estimatedTimeToMaxLevel > 0 then
         -- Round up to nearest 50 hours, with minimum of 100
         xAxisMax = math.max(100, math.ceil(estimatedTimeToMaxLevel / 50) * 50)
@@ -314,6 +315,12 @@ local function AddEstimationCurveToGraph()
     -- Also add a point at the estimation to make it more visible
     local estimationPoint = {{estimatedTimeToMaxLevel, maxLevel}}
     graph:AddDataSeries(estimationPoint, {1.0, 0.0, 0.0, 1.0})
+
+    -- Add the estimation number next to the curve point
+    local estimationText = levelGraphFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    estimationText:SetPoint("LEFT", graph, "TOPLEFT", (estimatedTimeToMaxLevel / xAxisMax) * graph:GetWidth(), -10)
+    estimationText:SetText(math.floor(estimatedTimeToMaxLevel + 0.5) .. "h")
+    estimationText:SetTextColor(0.5, 0.5, 0.5, 1)  -- Gray color for estimation text
 end
 
 -- Function to update the level graph with snapshot data
