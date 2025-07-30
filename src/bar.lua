@@ -1,21 +1,9 @@
 local addonName, addonTable = ...
+local utils = addonTable.utils
 
 -- Local variables to hold UI elements
 local xpBarFrame
 -- No longer need AceGUI since we're using native frames
-
--- Helper function to format large numbers (e.g., 1000 -> 1k, 1000000 -> 1M)
-local function FormatLargeNumber(num)
-    if num >= 1000000 then
-        return string.format("%.1fM", num / 1000000)
-    elseif num >= 10000 then
-        return string.format("%.1fk", num / 1000)
-    elseif num >= 1000 then
-        return string.format("%.1fk", num / 1000)
-    else
-        return tostring(num)
-    end
-end
 
 -- Function to create a standalone XP bar frame
 local function CreateXpBarFrame(addonInstance)
@@ -174,17 +162,8 @@ local function UpdateXpBarFrame(addonInstance)
     
     -- Better format for the text display - show percentage and remaining XP
     if xpBarFrame.text then
-        -- Format large numbers for better readability
-        local function FormatNumber(num)
-            if num >= 1000 then
-                return string.format("%s", FormatLargeNumber(num))
-            else
-                return tostring(num)
-            end
-        end
-        
         local formattedPercent = string.format("%.1f%%", currentXPPerc)
-        local formattedRemaining = FormatNumber(maxXP - currentXP)
+        local formattedRemaining = utils.FormatLargeNumber(maxXP - currentXP)
         
         xpBarFrame.text:SetText(string.format("%s (%s %s)", 
             formattedPercent, formattedRemaining, L["remaining"]))

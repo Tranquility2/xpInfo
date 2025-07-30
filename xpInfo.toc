@@ -15,6 +15,7 @@
 embeds.xml
 
 Locales/enUS.lua
+src/utils.lua
 src/main.lua
 src/options.lua
 src/cli.lua

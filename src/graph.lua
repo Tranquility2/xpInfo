@@ -1,4 +1,5 @@
 local addonName, addonTable = ...
+local utils = addonTable.utils
 
 -- Local variables to hold UI elements
 local levelGraphFrame
@@ -14,37 +15,6 @@ local FAKE_SNAPSHOTS = false
 local levelSnapshots
 local maxLevel
 local estimatedTimeToMaxLevel
-
--- Function to format time in hours to a readable string
-local function FormatTimeEstimate(hours)
-    if not hours or hours <= 0 then
-        return "N/A"
-    end
-    
-    local days = math.floor(hours / 24)
-    local remainingHours = math.floor(hours % 24)
-    local minutes = math.floor((hours % 1) * 60)
-    
-    local parts = {}
-    
-    if days > 0 then
-        table.insert(parts, days .. (days == 1 and " day" or " days"))
-    end
-    
-    if remainingHours > 0 then
-        table.insert(parts, remainingHours .. (remainingHours == 1 and " hour" or " hours"))
-    end
-    
-    if minutes > 0 and days == 0 then  -- Only show minutes if less than a day
-        table.insert(parts, minutes .. (minutes == 1 and " minute" or " minutes"))
-    end
-    
-    if #parts == 0 then
-        return "Less than 1 minute"
-    end
-    
-    return table.concat(parts, ", ")
-end
 
 -- Function to calculate estimated time to reach max level using recent progression rate
 local function CalculateTimeToMaxLevel(levelSnapshots, maxLevel)
@@ -130,18 +100,18 @@ local function CalculateTimeToMaxLevel(levelSnapshots, maxLevel)
         print("Debug: Overall rate:", overallRate, "hours per level")
         print("Debug: Overall estimate:", overallEstimate, "hours")
         print("Debug: Final estimation:", estimatedTotalTime, "hours")
-        print("Debug: Formatted estimation:", FormatTimeEstimate(estimatedTotalTime))
+        print("Debug: Formatted estimation:", utils.FormatTimeEstimate(estimatedTotalTime))
     end
     
     -- Accept reasonable estimates
     if estimatedTotalTime > currentTime and estimatedTotalTime <= 1000 then  -- Must be greater than current time and reasonable
         if DEBUG_ESTIMATION then
-            print("Debug: Returning estimation:", FormatTimeEstimate(estimatedTotalTime))
+            print("Debug: Returning estimation:", utils.FormatTimeEstimate(estimatedTotalTime))
         end
         return estimatedTotalTime
     else
         if DEBUG_ESTIMATION then
-            print("Debug: Estimation out of reasonable range:", FormatTimeEstimate(estimatedTotalTime))
+            print("Debug: Estimation out of reasonable range:", utils.FormatTimeEstimate(estimatedTotalTime))
         end
         return nil
     end
