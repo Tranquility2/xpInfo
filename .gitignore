@@ -2,3 +2,5 @@
 .vscode/
 # Ignore the libs directory
 libs/
+# Ignore the release directory
+.release/
