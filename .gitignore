@@ -1,1 +1,4 @@
+# Ignore Visual Studio Code settings
 .vscode/
+# Ignore the libs directory
+libs/
