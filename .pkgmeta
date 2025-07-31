@@ -7,24 +7,55 @@ license: GPL-3.0
 enable-nolib-creation: no
 
 externals:
-  libs/AceAddon-3.0: https://github.com/Ace3/AceAddon-3.0/tags/3.0.1
-  libs/AceComm-3.0: https://github.com/Ace3/AceComm-3.0/tags/3.0.6
-  libs/AceConfig-3.0: https://github.com/Ace3/AceConfig-3.0/tags/3.0.5
-  libs/AceConsole-3.0: https://github.com/Ace3/AceConsole-3.0/tags/3.0.3
-  libs/AceDB-3.0: https://github.com/Ace3/AceDB-3.0/tags/3.0.4
-  libs/AceDBOptions-3.0: https://github.com/Ace3/AceDBOptions-3.0/tags/3.0.2
-  libs/AceEvent-3.0: https://github.com/Ace3/AceEvent-3.0/tags/3.0.2
-  libs/AceGUI-3.0: https://github.com/Ace3/AceGUI-3.0/tags/3.0.44
-  libs/AceLocale-3.0: https://github.com/Ace3/AceLocale-3.0/tags/3.0.2
-  libs/AceSerializer-3.0: https://github.com/Ace3/AceSerializer-3.0/tags/3.0.1
-  libs/CallbackHandler-1.0: https://github.com/BigWigsMods/CallbackHandler-1.0/tags/1.0.7
-  libs/LibDataBroker-1.1: https://github.com/tekkub/libdatabroker-1-1/tags/1.1.14
-  libs/LibDBIcon-1.0: https://github.com/phanx-wow/LibDBIcon-1.0/tags/1.0.17
-  libs/LibGraph-2.0: https://github.com/BigWigsMods/LibGraph-2.0/tags/2.0.10
-  libs/LibStub: https://github.com/phanx-wow/LibStub/tags/1.0.3
+  libs/AceAddon-3.0:
+    url: https://github.com/Ace3/AceAddon-3.0
+    tag: 3.0.1
+  libs/AceComm-3.0:
+    url: https://github.com/Ace3/AceComm-3.0
+    tag: 3.0.6
+  libs/AceConfig-3.0:
+    url: https://github.com/Ace3/AceConfig-3.0
+    tag: 3.0.5
+  libs/AceConsole-3.0:
+    url: https://github.com/Ace3/AceConsole-3.0
+    tag: 3.0.3
+  libs/AceDB-3.0:
+    url: https://github.com/Ace3/AceDB-3.0
+    tag: 3.0.4
+  libs/AceDBOptions-3.0:
+    url: https://github.com/Ace3/AceDBOptions-3.0
+    tag: 3.0.2
+  libs/AceEvent-3.0:
+    url: https://github.com/Ace3/AceEvent-3.0
+    tag: 3.0.2
+  libs/AceGUI-3.0:
+    url: https://github.com/Ace3/AceGUI-3.0
+    tag: 3.0.44
+  libs/AceLocale-3.0:
+    url: https://github.com/Ace3/AceLocale-3.0
+    tag: 3.0.2
+  libs/AceSerializer-3.0:
+    url: https://github.com/Ace3/AceSerializer-3.0
+    tag: 3.0.1
+  libs/CallbackHandler-1.0:
+    url: https://github.com/BigWigsMods/CallbackHandler-1.0
+    tag: 1.0.7
+  libs/LibDataBroker-1.1:
+    url: https://github.com/tekkub/libdatabroker-1-1
+    tag: 1.1.14
+  libs/LibDBIcon-1.0:
+    url: https://github.com/phanx-wow/LibDBIcon-1.0
+    tag: 1.0.17
+  libs/LibGraph-2.0:
+    url: https://github.com/BigWigsMods/LibGraph-2.0
+    tag: 2.0.10
+  libs/LibStub:
+    url: https://github.com/phanx-wow/LibStub
+    tag: 1.0.3
 
 ignore:
   - ".github"
   - ".vscode"
+  - ".pkgmeta"
   - "images"
   - "LICENSE"
