@@ -22,6 +22,6 @@
   <Include file="libs\LibDBIcon-1.0\lib.xml"/>
   
   <!-- Graph Library -->
-  <Script file="libs\LibGraph-2.0\LibGraph-2.0\LibGraph-2.0.lua"/>
+  <Script file="libs\LibGraph-2.0\LibGraph-2.0.lua"/>
 
 </Ui>
