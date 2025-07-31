@@ -69,14 +69,5 @@ This file ensures that the correct versions of libraries are used and simplifies
 ## More Information
 For detailed documentation, algorithms, troubleshooting, and technical information, see [Details.md](Details.md)
 
-
-
-
-## Project Resources
-See [Resources.md](Resources.md) for a curated list of guides and references that helped make this project.
-## Project Resources
-See [Resources.md](Resources.md) for a curated list of guides and references that helped make this project.
-## Project Resources
-See [Resources.md](Resources.md) for a curated list of guides and references that helped make this project.
 ## Project Resources
 See [Resources.md](Resources.md) for a curated list of guides and references that helped make this project.
