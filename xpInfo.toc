@@ -2,8 +2,7 @@
 ## Title: xpInfo
 ## Notes: Displays current player progression, XP, and time to level.
 ## Author: Roy Moore
-## Version: 1.1.2
-
+## Version: 1.0.0
 ## X-Embeds: Ace3
 ## X-Category: Leveling
 ## X-License: GPL-3.0
