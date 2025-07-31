@@ -64,11 +64,19 @@ Access via `/xpi config`:
 - **Classic Era Servers**: Fully supported ✅  
 - **Hardcore**: Compatible ✅
 - **Retail**: Not Tested ❌
-
-
-## Package Management
-This project uses a `.pkgmeta` file to manage external libraries and dependencies. 
 This file ensures that the correct versions of libraries are used and simplifies the process of updating them.
 
 ## More Information
 For detailed documentation, algorithms, troubleshooting, and technical information, see [Details.md](Details.md)
+
+
+
+
+## Project Resources
+See [Resources.md](Resources.md) for a curated list of guides and references that helped make this project.
+## Project Resources
+See [Resources.md](Resources.md) for a curated list of guides and references that helped make this project.
+## Project Resources
+See [Resources.md](Resources.md) for a curated list of guides and references that helped make this project.
+## Project Resources
+See [Resources.md](Resources.md) for a curated list of guides and references that helped make this project.
