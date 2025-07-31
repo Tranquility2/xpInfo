@@ -42,7 +42,7 @@ externals:
     tag: 1.0.7
   libs/LibDataBroker-1.1:
     url: https://github.com/tekkub/libdatabroker-1-1
-    tag: 1.1.14
+    tag: 1.1.4
   libs/LibDBIcon-1.0:
     url: https://github.com/phanx-wow/LibDBIcon-1.0
     tag: 1.0.17
@@ -59,3 +59,4 @@ ignore:
   - ".pkgmeta"
   - "images"
   - "LICENSE"
+  - "libs"
