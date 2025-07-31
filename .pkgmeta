@@ -29,4 +29,3 @@ ignore:
   - ".pkgmeta"
   - "images"
   - "LICENSE"
-  - "libs"
