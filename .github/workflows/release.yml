@@ -14,6 +14,5 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Package and release
         uses: BigWigsMods/packager@v2
