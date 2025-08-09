@@ -3,7 +3,7 @@ local addonName, _ = ...
 local L = LibStub("AceLocale-3.0"):NewLocale(addonName, "enUS", true)
 if not L then return end
 
--- Localization strings for the addon
+-- Addon Strings
 L["XpInfo"] = "XpInfo"
 L["Current XP"] = "Current XP"
 L["Rested XP"] = "Rested XP"
@@ -45,13 +45,12 @@ L["Toggle the visibility of the standalone XP bar."] = "Toggle the visibility of
 L["XP Bar position reset."] = "XP Bar position reset."
 L["Usage: /xpi [show|hide|toggle|reset|config|estimate] [xpbar]"] = "Usage: /xpi [show|hide|toggle|reset|config|estimate] [xpbar]"
 L["Show Stats Frame"] = "Show Stats Frame"
-L["remaining"] = "remaining"
 
--- Strings for Snapshot Viewer
+-- Snapshot Viewer Strings
 L["Snapshots Viewer"] = "Snapshots Viewer"
 L["Close"] = "Close"
 
--- Tooltip Position Settings
+-- Tooltip Position Strings
 L["Tooltip Position"] = "Tooltip Position"
 L["Choose where the tooltip should appear relative to the XP bar"] = "Choose where the tooltip should appear relative to the XP bar"
 L["Below"] = "Below"
@@ -60,7 +59,7 @@ L["Left"] = "Left"
 L["Right"] = "Right"
 L["Follow Cursor"] = "Follow Cursor"
 
--- Level Graph Settings
+-- Level Graph Strings
 L["Level Progression"] = "Level Progression"
 L["Show Level Graph"] = "Show Level Graph"
 L["Toggle the visibility of the level progression graph."] = "Toggle the visibility of the level progression graph."
@@ -76,12 +75,12 @@ L["recorded"] = "recorded"
 L["Level"] = "Level"
 L["Time Played"] = "Time Played"
 
--- Strings for options
+-- Options Strings
 L["Reset Data"] = "Reset Data"
 L["Reset the database and clear all stored data."] = "Reset the database and clear all stored data."
 L["Database reset."] = "Database reset."
 
--- Minimap Icon
+-- Minimap Icon Strings
 L["Minimap Icon"] = "Minimap Icon"
 L["Show Minimap Icon"] = "Show Minimap Icon"
 L["Toggle the visibility of the minimap icon."] = "Toggle the visibility of the minimap icon."
@@ -89,11 +88,11 @@ L["xpInfo - Click to toggle frame, Alt-Click to open settings."] = "xpInfo - Cli
 L["Frame is currently visible."] = "Frame is currently visible."
 L["Frame is currently hidden."] = "Frame is currently hidden."
 
--- Progress bar
+-- Progress Bar Strings
 L["remaining"] = "remaining"
 L["After Rested"] = "After Rested"
 
--- Estimated Max Level Feature
+-- Estimated Max Level Strings
 L["Estimated Time to Max Level"] = "Estimated Time to Max Level"
 L["Based on current progression"] = "Based on current progression"
 L["Insufficient data for estimate"] = "Insufficient data for estimate"
